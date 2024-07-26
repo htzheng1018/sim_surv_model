@@ -9,7 +9,7 @@ library(truncnorm)
 
 
 
-# This file simulates a data from a vaccine clinical trial, with biomarker(fully observed).
+# This file simulates a data from a vaccine clinical trial, with biomarker(partially observed).
 # It can be ran both locally and in a cluster.
 
 # set up multi-cores

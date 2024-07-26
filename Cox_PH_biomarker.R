@@ -59,9 +59,9 @@ run_on_cluster(
       
       # biomarker
       S = rtruncnorm(n = n, a = 0, b = 1, mean = 0.5, sd = 0.2) # truncated normal in (0, 1)
-      edge_prob = 1 / (1 + exp(- 0.05*X1 + 0.005*X2)) # to make edge_prob distributed not too extremely
-      edge_val = rbinom(n, prob = edge_prob, size = 1)
-      S = (1 - edge_val) * S
+      prob_tmp = 1 / (1 + exp(- 0.05*X1 + 0.005*X2)) # to make edge_prob distributed not too extremely
+      val_tmp = rbinom(n, prob = prob_tmp, size = 1)
+      S = (1 - val_tmp) * S
       
       # survival time
       U = runif(n = n)
@@ -88,7 +88,10 @@ run_on_cluster(
       # delta
       delta = ifelse(t <= C, 1, 0)
       
-      data = data.frame("X" = pmin(t, C), "delta" = delta, "S" = S, "X1" = X1, "X2" = X2)
+      # observed time
+      Y = pmin(t, C)
+      
+      data = data.frame("Y" = Y, "delta" = delta, "S" = S, "X1" = X1, "X2" = X2)
       return(data)
     }
     
@@ -97,7 +100,7 @@ run_on_cluster(
     sim %<>% set_script(function() {
       library(survival)
       dat = create_data(L$n, L$error_meth$meth_type, L$error_meth$meth_params, L$error_relation, L$surv_time$surv_type, L$surv_time$surv_params)
-      model = coxph(Surv(X, delta) ~ X1 + X2 + S, data = dat)
+      model = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat)
       return(list(
         "beta_X1_hat" = model$coef["X1"],
         "beta_X2_hat" = model$coef["X2"],
