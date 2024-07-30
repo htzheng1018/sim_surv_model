@@ -9,6 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 library(mice)
 library(dplyr)
+library(tidyr)
 library(ggplot2)
 library(devtools)
 library(SimEngine)
@@ -28,7 +29,7 @@ run_on_cluster(
     sim = new_sim()
     
     sim %<>% set_levels(
-      n = 500,
+      n = 50000,
       surv_time = list(
         "Exp" = list(surv_type = "Exponential", surv_params = 1.5e-2), # may be some problems
         "Gom" = list(surv_type = "Gompertz", surv_params = c(0.2138, 7e-8))
@@ -105,12 +106,11 @@ run_on_cluster(
       prob_tmp = 1 / (1 + exp(0.15*X1 + 0.001*X2_true - 1))
       Z = delta*I(Y <= t0) + (1 - delta*I(Y <= t0)) * rbinom(n = n, size = 1, prob = prob_tmp)
       
-      data = data.frame("Y" = Y, "delta" = delta, "S" = S, "X1" = X1, "X2" = X2, "Z" = Z,
-                        "T" = t, "C" = C)
+      data = data.frame("Y" = Y, "delta" = delta, "S" = S, "X1" = X1, "X2" = X2, "Z" = Z, "T" = t, "C" = C)
       return(data)
     }
     
-    sim %<>% set_config(num_sim = 100, n_cores = 4, seed = 1018)
+    sim %<>% set_config(num_sim = 1000, n_cores = 4, seed = 1018)
     
     sim %<>% set_script(function() {
       library(survival)
@@ -170,6 +170,7 @@ run_on_cluster(
 
 
 
+scatterplot
 T vs S
 ```{r}
 i = 1
@@ -182,9 +183,6 @@ picture = ggplot(data, aes(x = S, y = T)) +
   ylim(0, 50)
 print(picture)
 ```
-
-
-
 
 
 
