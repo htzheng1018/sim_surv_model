@@ -173,7 +173,7 @@ run_on_cluster(
 scatterplot
 T vs S
 ```{r}
-i = 1
+i = 100
 uid = paste0("sim_uid_", i)
 data = sim$results_complex[[uid]][["data"]]
 picture = ggplot(data, aes(x = S, y = T)) +
