@@ -11,6 +11,13 @@ knitr::opts_chunk$set(echo = TRUE)
 
 
 
+start time
+```{r}
+start_time = Sys.time()
+```
+
+
+
 run a simulation
 ```{r}
 run_on_cluster(
@@ -19,7 +26,7 @@ run_on_cluster(
     sim = new_sim()
     
     sim %<>% set_levels(
-      n = c(100, 500, 1000, 5000, 10000),
+      n = c(100, 200, 500, 1000),
       surv_time = list(
         "Exp" = list(surv_type = "Exponential", surv_params = 1.5e-2), # may be some problems
         "Gom" = list(surv_type = "Gompertz", surv_params = c(0.2138, 7e-8))
@@ -132,6 +139,15 @@ run_on_cluster(
   
   cluster_config = list(js = "slurm")
 )
+```
+
+
+
+end time
+```{r}
+end_time = Sys.time()
+execution_time = end_time - start_time
+print(execution_time)
 ```
 
 

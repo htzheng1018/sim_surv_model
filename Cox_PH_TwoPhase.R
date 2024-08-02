@@ -1,16 +1,15 @@
-# library(mice)
-# library(dplyr)
-# library(ggplot2)
-# library(devtools)
-# library(survival)
-# library(parallel)
-# library(truncnorm)
 library(SimEngine)
 
 
 
-# This file simulates a data from a vaccine clinical trial, with biomarker(partially observed).
+# This file simulates a data with a partially observed biomarker.
+# Two-phase sampling method
 # It can be ran both locally and in a cluster.
+
+
+
+# start time
+start_time = Sys.time()
 
 # set up multi-cores
 run_on_cluster(
@@ -19,7 +18,7 @@ run_on_cluster(
     sim = new_sim()
     
     sim %<>% set_levels(
-      n = c(100, 500, 1000, 10000),
+      n = c(100, 200, 500, 1000),
       surv_time = list(
         "Exp" = list(surv_type = "Exponential", surv_params = 1.5e-2), # may be some problems
         "Gom" = list(surv_type = "Gompertz", surv_params = c(0.2138, 7e-8))
@@ -160,3 +159,10 @@ run_on_cluster(
   
   cluster_config = list(js = "slurm")
 )
+
+
+
+# end time
+end_time = Sys.time()
+execution_time = end_time - start_time
+print(execution_time)
