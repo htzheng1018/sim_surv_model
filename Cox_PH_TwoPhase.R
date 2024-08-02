@@ -82,10 +82,10 @@ run_on_cluster(
       
       # using ipwpoint function to generate inverse probability weights
       ip_weights = ipwpoint(
-        exposure = treat,
+        exposure = Z,
         family = "binomial",  # The treatment is binary
         link = "logit",
-        denominator = ~ delta + S + X1 + X2 + Z,
+        denominator = ~ treat + delta + S + X1 + X2,
         data = data
       )$ipw.weights
       
@@ -120,7 +120,8 @@ run_on_cluster(
         "treat_pctg" = (model$coef["treat"] - 1) / 1 *100,
         ".complex" = list(
           "model" = model,
-          "cov_mtx" = vcov(model)
+          "cov_mtx" = vcov(model),
+          "data" = dat_phaseTwo
         )
       ))
     })
