@@ -105,7 +105,6 @@ run_on_cluster(
       dat_phaseOne = create_data(L$n, L$surv_time$surv_type, L$surv_time$surv_params)
       dat_phaseTwo = dat_phaseOne %>%
         dplyr::filter(Z == 1 & treat == 1) # use phase two data
-      if (nrow(dat_phaseTwo) == 0) {print("Yessssssss")}
       model = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_phaseTwo, weights = ipw)
       return(list(
         "beta_X1_hat" = model$coef["X1"],
