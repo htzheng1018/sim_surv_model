@@ -30,7 +30,7 @@ run_on_cluster(
       id = seq(1, n)
       
       # treatment
-      treat = sample(0:1, n, replace = TRUE, prob = c(0.7, 0.3))
+      treat = sample(0:1, n, replace = TRUE, prob = c(0.3, 0.7))
       
       # X1
       X1 = rnorm(n = n, mean = 24.3, sd = 8.38)
@@ -88,6 +88,7 @@ run_on_cluster(
         denominator = ~ treat + delta + S + X1 + X2,
         data = data
       )$ipw.weights
+      #ip_weights = 1 / prob_tmp # we can also use this directly as the ip_weights
       
       # final data
       data = data %>% 
@@ -103,21 +104,22 @@ run_on_cluster(
     sim %<>% set_script(function() {
       dat_phaseOne = create_data(L$n, L$surv_time$surv_type, L$surv_time$surv_params)
       dat_phaseTwo = dat_phaseOne %>%
-        dplyr::filter(Z == 1) # use phase two data
-      model = coxph(Surv(Y, delta) ~ X1 + X2 + S + treat, data = dat_phaseTwo, weights = ipw)
+        dplyr::filter(Z == 1 & treat == 1) # use phase two data
+      if (nrow(dat_phaseTwo) == 0) {print("Yessssssss")}
+      model = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_phaseTwo, weights = ipw)
       return(list(
         "beta_X1_hat" = model$coef["X1"],
         "beta_X2_hat" = model$coef["X2"],
         "beta_S_hat" = model$coef["S"],
-        "beta_treat_hat" = model$coef["treat"],
+        # "beta_treat_hat" = model$coef["treat"],
         "beta_X1_se" = summary(model)$coef["X1", "se(coef)"],
         "beta_X2_se" = summary(model)$coef["X2", "se(coef)"],
         "beta_S_se" = summary(model)$coef["S", "se(coef)"],
-        "beta_treat_se" = summary(model)$coef["treat", "se(coef)"],
+        # "beta_treat_se" = summary(model)$coef["treat", "se(coef)"],
         "X1_pctg" = (model$coef["X1"] - 0.15) / 0.15 * 100,
         "X2_pctg" = (model$coef["X2"] - 0.001) / 0.001 *100,
         "S_pctg" = (model$coef["S"] + 5) / (-5) *100,
-        "treat_pctg" = (model$coef["treat"] - 1) / 1 *100,
+        # "treat_pctg" = (model$coef["treat"] - 1) / 1 *100,
         ".complex" = list(
           "model" = model,
           "cov_mtx" = vcov(model),
@@ -137,24 +139,24 @@ run_on_cluster(
     beta_X1 = sim %>% SimEngine::summarize(list(stat = "mean", x = "beta_X1_hat"))
     beta_X2 = sim %>% SimEngine::summarize(list(stat = "mean", x = "beta_X2_hat"))
     beta_S = sim %>% SimEngine::summarize(list(stat = "mean", x = "beta_S_hat"))
-    beta_treat = sim %>% SimEngine::summarize(list(stat = "mean", x = "beta_treat_hat"))
+    # beta_treat = sim %>% SimEngine::summarize(list(stat = "mean", x = "beta_treat_hat"))
     # bias
     bias_beta = sim %>% SimEngine::summarize(
       list(stat = "bias", estimate = "beta_X1_hat", truth = 0.15, name = "bias_beta_X1"),
       list(stat = "bias", estimate = "beta_X2_hat", truth = 0.001, name = "bias_beta_X2"),
       list(stat = "bias", estimate = "beta_S_hat", truth = -5, name = "bias_beta_S"),
-      list(stat = "bias", estimate = "beta_treat_hat", truth = 1, name = "bias_beta_treat"),
+      # list(stat = "bias", estimate = "beta_treat_hat", truth = 1, name = "bias_beta_treat"),
       list(stat = "coverage", estimate = "beta_X1_hat", se = "beta_X1_se", truth = 0.15, name = "cov_beta_X1"),
       list(stat = "coverage", estimate = "beta_X2_hat", se = "beta_X2_se", truth = 0.001, name = "cov_beta_X2"),
-      list(stat = "coverage", estimate = "beta_S_hat", se = "beta_S_se", truth = -5, name = "cov_beta_S"),
-      list(stat = "coverage", estimate = "beta_treat_hat", se = "beta_treat_se", truth = 1, name = "cov_beta_treat")
+      list(stat = "coverage", estimate = "beta_S_hat", se = "beta_S_se", truth = -5, name = "cov_beta_S")
+      # list(stat = "coverage", estimate = "beta_treat_hat", se = "beta_treat_se", truth = 1, name = "cov_beta_treat")
     )
     # bias percentage
     bias_beta_pct = sim %>% SimEngine::summarize(
       list(stat = "mean", x = "X1_pctg", name = "bias_beta_X1_pct"),
       list(stat = "mean", x = "X2_pctg", name = "bias_beta_X2_pct"),
-      list(stat = "mean", x = "S_pctg", name = "bias_beta_S_pct"),
-      list(stat = "mean", x = "treat_pctg", name = "bias_beta_treat_pct")
+      list(stat = "mean", x = "S_pctg", name = "bias_beta_S_pct")
+      # list(stat = "mean", x = "treat_pctg", name = "bias_beta_treat_pct")
     )
   },
   
