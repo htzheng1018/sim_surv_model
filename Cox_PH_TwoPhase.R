@@ -98,7 +98,7 @@ run_on_cluster(
     }
     
     sim %<>% set_config(num_sim = 1000, n_cores = 4, seed = 1018,
-                        packages = c("survival", "parallel", "truncnorm", "devtools", "ipw")
+                        packages = c("survival", "parallel", "truncnorm", "devtools", "ipw", "dplyr")
                         )
     
     sim %<>% set_script(function() {
