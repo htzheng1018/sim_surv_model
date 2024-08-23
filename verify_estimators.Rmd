@@ -123,57 +123,53 @@ dat_phaseTwo = dat_phaseOne %>%
 
 
 ```{r}
-model = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_phaseOne, weights = ipw)
+model_real = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_phaseOne)
+model_est = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_phaseTwo)
+wt_phase = nrow(dat_phaseTwo) / nrow(dat_phaseOne)
 ```
 
 
-true lambda
+
 ```{r}
-lambda_true = basehaz(model, dat_phaseOne, centered = F)
-```
-
-
-estimated lambda
-```{r}
-# estimate beta
-beta_init = matrix(c(0.011, 0.003), 2, 1)
-
-# score function
-score_function = function(beta, data) {
-  beta_matrix = as.matrix(beta)
-  n = nrow(data)
-  delta = data$delta
-  X = as.matrix(data[, c("X1", "X2")])
+surv_est = function(model, t, wt_phase, data) {
+  bh_1 = basehaz(model)
+  index = which.min(abs(bh_1$time - t))
   
-  score = matrix(0, nrow(beta_matrix), 1)
-  for (i in 1: n) {
-    nom = 0
-    for (j in 1: n) {
-      R = I(data$Y[j] >= data$Y[i])
-      nom = nom + R * X[j, ] %*% exp(t(beta_matrix) %*% X[j, ])
-    }
-    #print(nom)
-    den = 0
-    for (j in 1: n) {
-      R = I(data$Y[j] >= data$Y[i])
-      den = den + R * exp(t(beta_matrix) %*% X[j, ])
-    }
-    score = score + delta[i] * (X[i, ] - nom/den[1, 1])
-  }
-  return(score)
+  lambda_0 = bh_1$hazard[index]
+  
+  beta = model$coefficients
+  X_S = data[, c(names(model$coefficients))]
+  proportional = exp(beta %*% t(XS))
+  
+  result = exp(- lambda_0 * wt_phase * proportional)
+  return(mean(result))
 }
-
-
-score_function(beta_init, dat_phaseTwo)
-
-
-result = optim(par = as.vector(beta_init),
-               fn = score_function,
-               data = dat_phaseTwo,
-               method = "BFGS")
-
-theta_opt <- matrix(result$par, 2, 2)
 ```
+
+
+
+```{r}
+surv_real = function(model, t) {
+  Q_fit = survfit(model)
+  index = which.min(abs(Q_fit$time - t))
+  Q_fit$surv[index]
+}
+```
+
+
+
+```{r}
+t_series = sort(dat_phaseTwo$Y)
+t_series
+est = c()
+real = c()
+for (i in 1: length(t_series)) {
+  est[i] = surv_est(model2, t_series[i], wt_phase, dat_phaseTwo)
+  real[i] = surv_real(model1, t_series[i])
+}
+result = data.frame(time = t_series, est = est, real = real)
+```
+
 
 
 

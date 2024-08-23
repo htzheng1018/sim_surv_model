@@ -6,7 +6,7 @@ library(parallel)
 library(dplyr)
 library(ggplot2)
 
-n = 1000
+n = 10000
 surv_type = "Gompertz"
 surv_params = c(0.2138, 7e-8)
 
@@ -113,31 +113,42 @@ surv_est = function(model, t, wt, data) {
   return(mean(result))
 }
 
-surv_est(model2, 46, wt_phase, dat_phaseTwo)
+# surv_est(model2, 46, wt_phase, dat_phaseTwo)
 
 
-surv_real = function(model, t) {
+# surv_real = function(model, t) {
+#   Q_fit = survfit(model)
+#   index = which.min(abs(Q_fit$time - t))
+#   Q_fit$surv[index]
+# }
+# surv_real(model1, 46)
+
+
+risk_ = function(model, t) {
   Q_fit = survfit(model)
   index = which.min(abs(Q_fit$time - t))
   Q_fit$surv[index]
 }
-surv_real(model1, 46)
+
 
 
 t_series = sort(dat_phaseTwo$Y)
 t_series
 est = c()
 real = c()
+real_try = c()
 for (i in 1: length(t_series)) {
   est[i] = surv_est(model2, t_series[i], wt_phase, dat_phaseTwo)
-  real[i] = surv_real(model1, t_series[i])
+  real[i] = exp(7e-8/0.2138 * (1 - exp(0.2138*t_series[i])))
+  real_try[i] = surv_real(model1, t_series[i])
 }
 result = data.frame(time = t_series, est = est, real = real)
 
 ggplot(result, aes(x = time)) +
   geom_line(aes(y = est, color = "Estimated"), linewidth = 1) +
   geom_line(aes(y = real, color = "Real"), linewidth = 1) +
+  geom_line(aes(y = real_try, color = "Real_try"), linewidth = 1) +
   labs(x = "Time", y = "Survival Probability", color = "Legend") +
   theme_minimal() +
-  scale_color_manual(values = c("Estimated" = "blue", "Real" = "red")) +
+  scale_color_manual(values = c("Estimated" = "blue", "Real" = "red", "Real_try" = "green")) +
   ggtitle("Survival Curves")
