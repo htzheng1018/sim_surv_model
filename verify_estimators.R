@@ -87,40 +87,41 @@ create_data = function(n, surv_type, surv_params) {
 
 
 dat_phaseOne = create_data(n, surv_type, surv_params)
+model1 = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_phaseOne)
+summary(model1)
+
+dat_phaseTwo = dat_phaseOne
 dat_phaseTwo = dat_phaseOne %>%
   dplyr::filter(Z == 1 & treat == 1) # use phase two data
 wt_phase = nrow(dat_phaseTwo) / nrow(dat_phaseOne)
-model = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_phaseTwo, weights = ipw)
-summary(model)
+model2 = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_phaseTwo)
+summary(model2)
 
 
 
-est_surv = function(model, t, data) {
+surv_est = function(model, t, wt, data) {
   bh_1 = basehaz(model)
-  bh_1f = function(t) {
-    index = which.min(abs(bh_1$time-t))
-    return(bh_1$hazard[index])
-  }
+  index = which.min(abs(bh_1$time - t))
   
-  coeffs = model$coefficients
-  bh_2 = function(data, coeffs) {
-    XS = data[, c("X1", "X2", "S")]
-    return(exp(coeffs %*% t(XS)))
-  }
+  lambda_0 = bh_1$hazard[index]
   
-  result = exp(- bh_1f(t) * wt_phase * bh_2(dat_phaseTwo, coeffs))
+  beta = model$coefficients
+  X_S = data[, c(names(model$coefficients))]
+  proportional = exp(beta %*% t(X_S))
+  
+  result = exp(- lambda_0 * wt * proportional)
   return(mean(result))
 }
 
-est_surv(model, 12.70725, dat_phaseTwo)
+surv_est(model2, 46, wt_phase, dat_phaseTwo)
 
 
-real_surv = function(model, t) {
+surv_real = function(model, t) {
   Q_fit = survfit(model)
   index = which.min(abs(Q_fit$time - t))
   Q_fit$surv[index]
 }
-real_surv(model, 46)
+surv_real(model1, 46)
 
 
 t_series = sort(dat_phaseTwo$Y)
@@ -128,8 +129,8 @@ t_series
 est = c()
 real = c()
 for (i in 1: length(t_series)) {
-  est[i] = est_surv(model, t_series[i], dat_phaseTwo)
-  real[i] = real_surv(model, t_series[i])
+  est[i] = surv_est(model2, t_series[i], wt_phase, dat_phaseTwo)
+  real[i] = surv_real(model1, t_series[i])
 }
 result = data.frame(time = t_series, est = est, real = real)
 
