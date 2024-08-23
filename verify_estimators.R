@@ -89,6 +89,7 @@ create_data = function(n, surv_type, surv_params) {
 dat_phaseOne = create_data(n, surv_type, surv_params)
 dat_phaseTwo = dat_phaseOne %>%
   dplyr::filter(Z == 1 & treat == 1) # use phase two data
+wt_phase = nrow(dat_phaseTwo) / nrow(dat_phaseOne)
 model = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_phaseTwo, weights = ipw)
 summary(model)
 
@@ -107,7 +108,7 @@ est_surv = function(model, t, data) {
     return(exp(coeffs %*% t(XS)))
   }
   
-  result = exp(- bh_1f(t) * data$ipw * bh_2(dat_phaseTwo, coeffs))
+  result = exp(- bh_1f(t) * wt_phase * bh_2(dat_phaseTwo, coeffs))
   return(mean(result))
 }
 
