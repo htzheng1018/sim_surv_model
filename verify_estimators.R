@@ -6,6 +6,8 @@ library(parallel)
 library(dplyr)
 library(ggplot2)
 
+
+
 n = 1000
 surv_type = "Gompertz"
 surv_params = c(0.2138, 7e-8)
@@ -86,10 +88,12 @@ create_data = function(n, surv_type, surv_params) {
 
 
 
+# get the phase one data
 dat_phaseOne = create_data(n, surv_type, surv_params)
 model1 = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_phaseOne)
 summary(model1)
 
+# get the phase two data
 dat_phaseTwo = dat_phaseOne
 dat_phaseTwo = dat_phaseOne %>%
   dplyr::filter(Z == 1 & treat == 1) # use phase two data
@@ -113,7 +117,7 @@ surv_true(surv_params, model1, 46, dat_phaseOne)
 
 
 
-# Two Phase Sampling etimated survival function
+# Two Phase Sampling estimated survival function
 surv_est = function(model, t, wt, data) {
   bh_1 = basehaz(model, centered = F)
   index = which.min(abs(bh_1$time - t))
@@ -131,7 +135,7 @@ surv_est(model2, 46, wt_phase, dat_phaseTwo)
 
 
 
-# coxph estimated survival function
+# Coxph estimated survival function
 surv_cox = function(model, t) {
   Q_fit = survfit(model)
   index = which.min(abs(Q_fit$time - t))
@@ -141,10 +145,7 @@ surv_cox(model1, 46)
 
 
 
-
-
-
-
+# get the complete survival functions of all of them
 time_max = round(max(dat_phaseOne$Y))
 true = c()
 est = c()
@@ -156,6 +157,9 @@ for (i in 1: time_max) {
 }
 result = data.frame(time = (1: time_max), true = true, est = est, est_cox = est_cox)
 
+
+
+# plot the survival function
 ggplot(result, aes(x = time)) +
   geom_line(aes(y = true, color = "true"), linewidth = 1) +
   geom_line(aes(y = est, color = "est"), linewidth = 1) +
