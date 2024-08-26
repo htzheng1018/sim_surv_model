@@ -13,24 +13,6 @@ library(SimEngine)
 
 
 ```{r}
-sim = new_sim()
-```
-
-
-
-```{r}
-sim %<>% set_levels(
-  n = c(100, 200, 500, 1000),
-  surv_time = list(
-    "Exp" = list(surv_type = "Exponential", surv_params = 1.5e-2), # may be some problems
-    "Gom" = list(surv_type = "Gompertz", surv_params = c(0.2138, 7e-8))
-  )
-)
-```
-
-
-
-```{r}
 create_data = function(n, surv_type, surv_params) {
   # id
   id = seq(1, n)
@@ -106,81 +88,47 @@ create_data = function(n, surv_type, surv_params) {
 
 
 
+functions of true survival, Coxph estimated and Two-phase sampling estimated
 ```{r}
-sim %<>% set_config(num_sim = 1000, n_cores = 4, seed = 1018,
-                    packages = c("survival", "parallel", "truncnorm", "devtools", "ipw")
-                    )
-```
+# true survival function
+surv_true = function(surv_type, surv_params, model, t, data) {
+  if (surv_type == "Exponential") {
+    lambda = surv_params
+    Q_0 = exp(- lambda * t)
+  } else if ( surv_type == "Gompertz") {
+    alpha = surv_params[1]
+    lambda = surv_params[2]
+    Q_0 = exp(lambda/alpha * (1 - exp(alpha*t)))
+  }
+  beta = model$coefficients
+  X_S = data[, c(names(model$coefficients))]
+  result = mean(Q_0 ^ (exp(beta %*% t(X_S))))
+  return((result))
+}
 
+# Coxph estimated survival function
+surv_cox = function(model, t) {
+  Q_fit = survfit(model)
+  index = which.min(abs(Q_fit$time - t))
+  result = Q_fit$surv[index]
+  return(result)
+}
 
-
-```{r}
-dat_phaseOne = create_data(1000, "Gompertz", c(0.2138, 7e-8))
-dat_phaseTwo = dat_phaseOne %>%
-  dplyr::filter(Z == 1 & treat == 1) # use phase two data
-```
-
-
-
-```{r}
-model_real = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_phaseOne)
-model_est = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_phaseTwo)
-wt_phase = nrow(dat_phaseTwo) / nrow(dat_phaseOne)
-```
-
-
-
-```{r}
-surv_est = function(model, t, wt_phase, data) {
-  bh_1 = basehaz(model)
+# Two Phase Sampling estimated survival function
+surv_two = function(model, t, wt, data) {
+  bh_1 = basehaz(model, centered = F)
   index = which.min(abs(bh_1$time - t))
   
   lambda_0 = bh_1$hazard[index]
   
   beta = model$coefficients
   X_S = data[, c(names(model$coefficients))]
-  proportional = exp(beta %*% t(XS))
+  proportional = exp(beta %*% t(X_S))
   
-  result = exp(- lambda_0 * wt_phase * proportional)
+  result = exp(- lambda_0 * wt * proportional)
   return(mean(result))
 }
 ```
-
-
-
-```{r}
-surv_real = function(model, t) {
-  Q_fit = survfit(model)
-  index = which.min(abs(Q_fit$time - t))
-  Q_fit$surv[index]
-}
-```
-
-
-
-```{r}
-t_series = sort(dat_phaseTwo$Y)
-t_series
-est = c()
-real = c()
-for (i in 1: length(t_series)) {
-  est[i] = surv_est(model2, t_series[i], wt_phase, dat_phaseTwo)
-  real[i] = surv_real(model1, t_series[i])
-}
-result = data.frame(time = t_series, est = est, real = real)
-```
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -280,25 +228,27 @@ run_on_cluster(
     
     sim %<>% set_script(function() {
       dat_phaseOne = create_data(L$n, L$surv_time$surv_type, L$surv_time$surv_params)
+      model_one = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_phaseOne)
       dat_phaseTwo = dat_phaseOne %>%
         dplyr::filter(Z == 1 & treat == 1) # use phase two data
-      model = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_phaseTwo, weights = ipw)
+      model_two = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_phaseTwo)
+      wt_phase = nrow(dat_phaseTwo) / nrow(dat_phaseOne)
+      
+      # choose a specific time
+      t = quantile(dat_phaseTwo$Y, probs = 0.5)
+      
+      Q_true = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, model_one, t, dat_phaseOne)
+      Q_est_cox = surv_cox(model_one, t)
+      Q_est_two = surv_two(model_two, t, wt_phase, dat_phaseTwo)
+      
       return(list(
-        "beta_X1_hat" = model$coef["X1"],
-        "beta_X2_hat" = model$coef["X2"],
-        "beta_S_hat" = model$coef["S"],
-        # "beta_treat_hat" = model$coef["treat"],
-        "beta_X1_se" = summary(model)$coef["X1", "se(coef)"],
-        "beta_X2_se" = summary(model)$coef["X2", "se(coef)"],
-        "beta_S_se" = summary(model)$coef["S", "se(coef)"],
-        # "beta_treat_se" = summary(model)$coef["treat", "se(coef)"],
-        "X1_pctg" = (model$coef["X1"] - 0.15) / 0.15 * 100,
-        "X2_pctg" = (model$coef["X2"] - 0.001) / 0.001 *100,
-        "S_pctg" = (model$coef["S"] + 5) / (-5) *100,
-        # "treat_pctg" = (model$coef["treat"] - 1) / 1 *100,
+        "Q_true" = Q_true,
+        "Q_est_cox" = Q_est_cox,
+        "Q_est_two" = Q_est_two,
+        "cox_pctg" = (Q_est_cox - Q_true) / Q_true * 100,
+        "two_pctg" = (Q_est_two - Q_true) / Q_true *100,
         ".complex" = list(
-          "model" = model,
-          "cov_mtx" = vcov(model),
+          "model" = model_two,
           "data" = dat_phaseTwo
         )
       ))
@@ -312,27 +262,19 @@ run_on_cluster(
   
   last = {
     # mean
-    beta_X1 = sim %>% SimEngine::summarize(list(stat = "mean", x = "beta_X1_hat"))
-    beta_X2 = sim %>% SimEngine::summarize(list(stat = "mean", x = "beta_X2_hat"))
-    beta_S = sim %>% SimEngine::summarize(list(stat = "mean", x = "beta_S_hat"))
-    # beta_treat = sim %>% SimEngine::summarize(list(stat = "mean", x = "beta_treat_hat"))
+    Q_true = sim %>% SimEngine::summarize(list(stat = "mean", x = "Q_true"))
+    Q_est_cox = sim %>% SimEngine::summarize(list(stat = "mean", x = "Q_est_cox"))
+    Q_est_two = sim %>% SimEngine::summarize(list(stat = "mean", x = "Q_est_two"))
     # bias
-    bias_beta = sim %>% SimEngine::summarize(
-      list(stat = "bias", estimate = "beta_X1_hat", truth = 0.15, name = "bias_beta_X1"),
-      list(stat = "bias", estimate = "beta_X2_hat", truth = 0.001, name = "bias_beta_X2"),
-      list(stat = "bias", estimate = "beta_S_hat", truth = -5, name = "bias_beta_S"),
-      # list(stat = "bias", estimate = "beta_treat_hat", truth = 1, name = "bias_beta_treat"),
-      list(stat = "coverage", estimate = "beta_X1_hat", se = "beta_X1_se", truth = 0.15, name = "cov_beta_X1"),
-      list(stat = "coverage", estimate = "beta_X2_hat", se = "beta_X2_se", truth = 0.001, name = "cov_beta_X2"),
-      list(stat = "coverage", estimate = "beta_S_hat", se = "beta_S_se", truth = -5, name = "cov_beta_S")
-      # list(stat = "coverage", estimate = "beta_treat_hat", se = "beta_treat_se", truth = 1, name = "cov_beta_treat")
+    bias_Q = sim %>% SimEngine::summarize(
+      list(stat = "bias", estimate = "Q_est_cox", truth = "Q_true", name = "bias_cox"),
+      list(stat = "bias", estimate = "Q_est_two", truth = "Q_true", name = "bias_twophase")
+      # list(stat = "coverage", estimate = "beta_X1_hat", se = "beta_X1_se", truth = 0.15, name = "cov_beta_X1"),
     )
     # bias percentage
-    bias_beta_pct = sim %>% SimEngine::summarize(
-      list(stat = "mean", x = "X1_pctg", name = "bias_beta_X1_pct"),
-      list(stat = "mean", x = "X2_pctg", name = "bias_beta_X2_pct"),
-      list(stat = "mean", x = "S_pctg", name = "bias_beta_S_pct")
-      # list(stat = "mean", x = "treat_pctg", name = "bias_beta_treat_pct")
+    bias_Q_pct = sim %>% SimEngine::summarize(
+      list(stat = "mean", x = "cox_pctg", name = "bias_cox_pct"),
+      list(stat = "mean", x = "two_pctg", name = "bias_twophase_pct")
     )
   },
   
