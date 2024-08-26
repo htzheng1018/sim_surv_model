@@ -6,7 +6,7 @@ library(parallel)
 library(dplyr)
 library(ggplot2)
 
-n = 10000
+n = 1000
 surv_type = "Gompertz"
 surv_params = c(0.2138, 7e-8)
 
@@ -99,8 +99,23 @@ summary(model2)
 
 
 
+# true survival function
+surv_true = function(surv_params, model, t, data) {
+  alpha = surv_params[1]
+  lambda = surv_params[2]
+  Q_0 = exp(lambda/alpha * (1 - exp(alpha*t)))
+  beta = model$coefficients
+  X_S = data[, c(names(model$coefficients))]
+  result = mean(Q_0 ^ (exp(beta %*% t(X_S))))
+  return((result))
+}
+surv_true(surv_params, model1, 46, dat_phaseOne)
+
+
+
+# Two Phase Sampling etimated survival function
 surv_est = function(model, t, wt, data) {
-  bh_1 = basehaz(model)
+  bh_1 = basehaz(model, centered = F)
   index = which.min(abs(bh_1$time - t))
   
   lambda_0 = bh_1$hazard[index]
@@ -112,43 +127,42 @@ surv_est = function(model, t, wt, data) {
   result = exp(- lambda_0 * wt * proportional)
   return(mean(result))
 }
-
-# surv_est(model2, 46, wt_phase, dat_phaseTwo)
-
-
-# surv_real = function(model, t) {
-#   Q_fit = survfit(model)
-#   index = which.min(abs(Q_fit$time - t))
-#   Q_fit$surv[index]
-# }
-# surv_real(model1, 46)
+surv_est(model2, 46, wt_phase, dat_phaseTwo)
 
 
-risk_ = function(model, t) {
+
+# coxph estimated survival function
+surv_cox = function(model, t) {
   Q_fit = survfit(model)
   index = which.min(abs(Q_fit$time - t))
   Q_fit$surv[index]
 }
+surv_cox(model1, 46)
 
 
 
-t_series = sort(dat_phaseTwo$Y)
-t_series
+
+
+
+
+time_max = round(max(dat_phaseOne$Y))
+true = c()
 est = c()
-real = c()
-real_try = c()
-for (i in 1: length(t_series)) {
-  est[i] = surv_est(model2, t_series[i], wt_phase, dat_phaseTwo)
-  real[i] = exp(7e-8/0.2138 * (1 - exp(0.2138*t_series[i])))
-  real_try[i] = surv_real(model1, t_series[i])
+est_cox = c()
+for (i in 1: time_max) {
+  true[i] = surv_true(surv_params, model1, i, dat_phaseOne)
+  est[i] = surv_est(model2, i, wt_phase, dat_phaseTwo)
+  est_cox[i] = surv_cox(model1, i)
 }
-result = data.frame(time = t_series, est = est, real = real)
+result = data.frame(time = (1: time_max), true = true, est = est, est_cox = est_cox)
 
 ggplot(result, aes(x = time)) +
-  geom_line(aes(y = est, color = "Estimated"), linewidth = 1) +
-  geom_line(aes(y = real, color = "Real"), linewidth = 1) +
-  geom_line(aes(y = real_try, color = "Real_try"), linewidth = 1) +
+  geom_line(aes(y = true, color = "true"), linewidth = 1) +
+  geom_line(aes(y = est, color = "est"), linewidth = 1) +
+  geom_line(aes(y = est_cox, color = "est_cox"), linewidth = 1) +
   labs(x = "Time", y = "Survival Probability", color = "Legend") +
   theme_minimal() +
-  scale_color_manual(values = c("Estimated" = "blue", "Real" = "red", "Real_try" = "green")) +
+  scale_color_manual(values = c("true" = "blue", "est" = "red", "est_cox" = "green")) +
+  theme(legend.position = c(0.9, 0.9)) +
   ggtitle("Survival Curves")
+
