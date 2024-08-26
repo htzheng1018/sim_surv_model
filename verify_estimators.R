@@ -90,7 +90,7 @@ create_data = function(n, surv_type, surv_params) {
 
 # get the phase one data
 dat_phaseOne = create_data(n, surv_type, surv_params)
-model1 = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_phaseOne)
+model1 = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_phaseOne, weights = ipw)
 summary(model1)
 
 # get the phase two data
@@ -98,7 +98,7 @@ dat_phaseTwo = dat_phaseOne
 dat_phaseTwo = dat_phaseOne %>%
   dplyr::filter(Z == 1 & treat == 1) # use phase two data
 wt_phase = nrow(dat_phaseTwo) / nrow(dat_phaseOne)
-model2 = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_phaseTwo)
+model2 = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_phaseTwo, weights = ipw)
 summary(model2)
 
 
@@ -122,13 +122,13 @@ surv_est = function(model, t, wt, data) {
   bh_1 = basehaz(model, centered = F)
   index = which.min(abs(bh_1$time - t))
   
-  lambda_0 = bh_1$hazard[index]
+  Q_0 = bh_1$hazard[index]
   
   beta = model$coefficients
   X_S = data[, c(names(model$coefficients))]
   proportional = exp(beta %*% t(X_S))
   
-  result = exp(- lambda_0 * wt * proportional)
+  result = exp(- Q_0 * wt * proportional)
   return(mean(result))
 }
 surv_est(model2, 46, wt_phase, dat_phaseTwo)

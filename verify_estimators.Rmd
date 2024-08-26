@@ -12,6 +12,8 @@ library(SimEngine)
 
 
 
+This file try to verify the bias of Survival estimators, and the variance of it using a Bootstrap method.
+It can be ran both locally and in a cluster.
 ```{r}
 create_data = function(n, surv_type, surv_params) {
   # id
@@ -119,13 +121,13 @@ surv_two = function(model, t, wt, data) {
   bh_1 = basehaz(model, centered = F)
   index = which.min(abs(bh_1$time - t))
   
-  lambda_0 = bh_1$hazard[index]
+  Q_0 = bh_1$hazard[index]
   
   beta = model$coefficients
   X_S = data[, c(names(model$coefficients))]
   proportional = exp(beta %*% t(X_S))
   
-  result = exp(- lambda_0 * wt * proportional)
+  result = exp(- Q_0 * wt * proportional)
   return(mean(result))
 }
 ```
@@ -143,7 +145,7 @@ run_on_cluster(
     sim = new_sim()
     
     sim %<>% set_levels(
-      n = c(100, 200, 500, 1000),
+      n = c(500, 1000, 5000),
       surv_time = list(
         "Exp" = list(surv_type = "Exponential", surv_params = 1.5e-2), # may be some problems
         "Gom" = list(surv_type = "Gompertz", surv_params = c(0.2138, 7e-8))
@@ -228,10 +230,10 @@ run_on_cluster(
     
     sim %<>% set_script(function() {
       dat_phaseOne = create_data(L$n, L$surv_time$surv_type, L$surv_time$surv_params)
-      model_one = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_phaseOne)
+      model_one = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_phaseOne, weights = ipw)
       dat_phaseTwo = dat_phaseOne %>%
         dplyr::filter(Z == 1 & treat == 1) # use phase two data
-      model_two = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_phaseTwo)
+      model_two = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_phaseTwo, weights = ipw)
       wt_phase = nrow(dat_phaseTwo) / nrow(dat_phaseOne)
       
       # choose a specific time
@@ -288,5 +290,6 @@ end_time = Sys.time()
 execution_time = end_time - start_time
 print(execution_time)
 ```
+
 
 
