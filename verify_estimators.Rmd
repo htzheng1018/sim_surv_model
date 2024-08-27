@@ -8,6 +8,7 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(SimEngine)
+library(ggplot2)
 ```
 
 
@@ -145,7 +146,7 @@ run_on_cluster(
     sim = new_sim()
     
     sim %<>% set_levels(
-      n = c(500, 1000, 5000),
+      n = c(500, 1000, 2000, 4000),
       surv_time = list(
         "Exp" = list(surv_type = "Exponential", surv_params = 1.5e-2), # may be some problems
         "Gom" = list(surv_type = "Gompertz", surv_params = c(0.2138, 7e-8))
@@ -237,8 +238,14 @@ run_on_cluster(
       wt_phase = nrow(dat_phaseTwo) / nrow(dat_phaseOne)
       
       # choose a specific time
-      t = quantile(dat_phaseTwo$Y, probs = 0.5)
+      time_max = round(max(dat_phaseOne$Y))
+      true = c()
+      for (i in 1: time_max) {
+        true[i] = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, model_one, i, dat_phaseOne)
+      }
+      t = which.min(abs(true - 0.5))
       
+      # get the Survival probability at the specific time point
       Q_true = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, model_one, t, dat_phaseOne)
       Q_est_cox = surv_cox(model_one, t)
       Q_est_two = surv_two(model_two, t, wt_phase, dat_phaseTwo)
@@ -289,6 +296,23 @@ run_on_cluster(
 end_time = Sys.time()
 execution_time = end_time - start_time
 print(execution_time)
+```
+
+
+
+plot
+```{r}
+ggplot(data.frame(
+  n = rep(c(500, 1000, 2000, 4000), 6),
+  surv = c(Q_true$mean_Q_true[1: 4], Q_est_cox$mean_Q_est_cox[1: 4], Q_est_two$mean_Q_est_two[1: 4],
+           Q_true$mean_Q_true[5: 8], Q_est_cox$mean_Q_est_cox[5: 8], Q_est_two$mean_Q_est_two[5: 8]),
+  which = rep(c("True Survival", "Coxph_estimator", "Twophase_estimator"), each = 4, times = 2),
+  model = rep(c("Exponential", "Gompertz"), each = 12)
+), aes(x = n, y = surv, color = factor(which))) +
+  geom_line() +
+  labs(color = "Method", y = "survival function", x = "Sample size (per group)") +
+  facet_wrap(~ model) +
+  theme_minimal()
 ```
 
 

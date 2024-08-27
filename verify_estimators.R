@@ -90,7 +90,7 @@ create_data = function(n, surv_type, surv_params) {
 
 # get the phase one data
 dat_phaseOne = create_data(n, surv_type, surv_params)
-model1 = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_phaseOne, weights = ipw)
+model1 = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_phaseOne)
 summary(model1)
 
 # get the phase two data
@@ -110,10 +110,9 @@ surv_true = function(surv_params, model, t, data) {
   Q_0 = exp(lambda/alpha * (1 - exp(alpha*t)))
   beta = model$coefficients
   X_S = data[, c(names(model$coefficients))]
-  result = mean(Q_0 ^ (exp(beta %*% t(X_S))))
-  return((result))
+  result = Q_0 ^ (exp(beta %*% t(X_S)))
+  return(mean(result))
 }
-surv_true(surv_params, model1, 46, dat_phaseOne)
 
 
 
@@ -131,7 +130,6 @@ surv_est = function(model, t, wt, data) {
   result = exp(- Q_0 * wt * proportional)
   return(mean(result))
 }
-surv_est(model2, 46, wt_phase, dat_phaseTwo)
 
 
 
@@ -139,9 +137,9 @@ surv_est(model2, 46, wt_phase, dat_phaseTwo)
 surv_cox = function(model, t) {
   Q_fit = survfit(model)
   index = which.min(abs(Q_fit$time - t))
-  Q_fit$surv[index]
+  result = Q_fit$surv[index]
+  return(result)
 }
-surv_cox(model1, 46)
 
 
 
