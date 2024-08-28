@@ -8,6 +8,9 @@ library(ggplot2)
 
 
 
+# This file try to verify the bias of Survival estimators, and plot the result of them.
+# It can be ran both locally and in a cluster.
+
 n = 1000
 surv_type = "Gompertz"
 surv_params = c(0.2138, 7e-8)

@@ -13,7 +13,7 @@ library(ggplot2)
 
 
 
-This file try to verify the bias of Survival estimators, and the variance of it using a Bootstrap method.
+This file try to verify the bias of Survival estimators, and the coverage of it using a Bootstrap method.
 It can be ran both locally and in a cluster.
 ```{r}
 create_data = function(n, surv_type, surv_params) {
