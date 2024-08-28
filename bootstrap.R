@@ -97,42 +97,62 @@ model2 = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_phaseTwo)
 
 
 
-surv_est = function(model, t, wt, data) {
-  bh_1 = basehaz(model)
+# true survival function
+surv_true = function(surv_type, surv_params, model, t, data) {
+  if (surv_type == "Exponential") {
+    lambda = surv_params
+    Q_0 = exp(- lambda * t)
+  } else if ( surv_type == "Gompertz") {
+    alpha = surv_params[1]
+    lambda = surv_params[2]
+    Q_0 = exp(lambda/alpha * (1 - exp(alpha*t)))
+  }
+  beta = model$coefficients
+  X_S = data[, c(names(model$coefficients))]
+  result = mean(Q_0 ^ (exp(beta %*% t(X_S))))
+  return((result))
+}
+
+# Coxph estimated survival function
+surv_cox = function(model, t) {
+  Q_fit = survfit(model)
+  index = which.min(abs(Q_fit$time - t))
+  result = Q_fit$surv[index]
+  return(result)
+}
+
+# Two Phase Sampling estimated survival function
+surv_two = function(model, t, wt, data) {
+  bh_1 = basehaz(model, centered = F)
   index = which.min(abs(bh_1$time - t))
   
-  lambda_0 = bh_1$hazard[index]
+  Q_0 = bh_1$hazard[index]
   
   beta = model$coefficients
   X_S = data[, c(names(model$coefficients))]
   proportional = exp(beta %*% t(X_S))
   
-  result = exp(- lambda_0 * wt * proportional)
+  result = exp(- Q_0 * wt * proportional)
   return(mean(result))
 }
 
-surv_real = function(model, t) {
-  Q_fit = survfit(model)
-  index = which.min(abs(Q_fit$time - t))
-  Q_fit$surv[index]
+
+
+# get true and estimated survival functions
+time_max = round(max(dat_phaseOne$Y))
+true = c()
+est = c()
+for (i in 1: time_max) {
+  true[i] = surv_true(surv_type, surv_params, model1, i, dat_phaseOne)
+  est[i] = surv_two(model2, i, wt_phase, dat_phaseTwo)
 }
-
-
+result = data.frame(time = (1: time_max), true = true, est = est)
 
 # bootstrap
-boot_ci = function(data, wt, model_phaseone, model_phasetwo) {
-  time_max = round(max(data$Y))
+boot_ci = function(data, wt, time_max) {
   nn = nrow(data)
   R = 1000
   surv.boot = NULL
-  
-  
-  surv_hat = c()
-  surv_true = c()
-  for (i in 1: time_max) {
-    surv_hat[i] = surv_est(model_phasetwo, i, wt, data)
-    surv_true[i] = surv_real(model_phaseone, i)
-  }
 
   for (r in 1: R) {
     boot.samp = sample(1: nn, size = nn, replace = TRUE)
@@ -141,21 +161,20 @@ boot_ci = function(data, wt, model_phaseone, model_phasetwo) {
     
     est = c()
     for (i in 1: time_max) {
-      est[i] = surv_est(model.boot, i, wt, data.boot)
+      est[i] = surv_two(model.boot, i, wt, data.boot)
     }
     surv.boot = rbind(surv.boot, est)
-    print(surv.boot)
   }
   ci.boot = apply(surv.boot, 2, quantile, prob = c(0.025, 0.975))
   result = data.frame(time = (1: time_max),
-                      low = ci.boot[1, ], up = ci.boot[2, ],
-                      hat = surv_hat, true = surv_true)
+                      low = ci.boot[1, ], up = ci.boot[2, ])
   return(result)
 }
 
-surv_ci = boot_ci(dat_phaseTwo, wt_phase, model_phaseone = model1, model_phasetwo = model2)
+surv_ci = boot_ci(dat_phaseTwo, wt_phase, time_max)
+surv_ci = merge(surv_ci, result, by = "time")
 
-plot(surv_ci$time, surv_ci$hat, type = "l", col="red", lwd=3)
+plot(surv_ci$time, surv_ci$est, type = "l", col="red", lwd=3)
 lines(surv_ci$time, surv_ci$true, col="green", lwd=3)
 lines(surv_ci$time, surv_ci$low, col="blue", lwd=3)
 lines(surv_ci$time, surv_ci$up, col="blue", lwd=3)

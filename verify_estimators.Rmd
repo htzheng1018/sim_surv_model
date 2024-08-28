@@ -105,8 +105,8 @@ surv_true = function(surv_type, surv_params, model, t, data) {
   }
   beta = model$coefficients
   X_S = data[, c(names(model$coefficients))]
-  result = mean(Q_0 ^ (exp(beta %*% t(X_S))))
-  return((result))
+  result = Q_0 ^ (exp(beta %*% t(X_S)))
+  return(mean(result))
 }
 
 # Coxph estimated survival function
@@ -135,6 +135,31 @@ surv_two = function(model, t, wt, data) {
 
 
 
+Bootstrap function
+```{r}
+boot_ci = function(model, wt, data, t) {
+  nn = nrow(data)
+  R = 1000
+  surv_cox.boot = c()
+  surv_two.boot = c()
+  
+  for (r in 1: R) {
+    boot.samp = sample(1: nn, size = nn, replace = TRUE)
+    data.boot = data[boot.samp, ]
+    model.boot = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = data.boot)
+    surv_cox.boot[r] = surv_cox(model.boot, t)
+    surv_two.boot[r] = surv_two(model.boot, t, wt, data)
+  }
+  ci_cox.boot = quantile(surv_cox.boot, prob = c(0.025, 0.975))
+  ci_two.boot = quantile(surv_two.boot, prob = c(0.025, 0.975))
+  result = data.frame(cox_low = ci_cox.boot[1], cox_up = ci_cox.boot[2],
+                      two_low = ci_two.boot[1], two_up = ci_two.boot[2])
+  return(result)
+}
+```
+
+
+
 ```{r}
 # start time
 start_time = Sys.time()
@@ -146,7 +171,8 @@ run_on_cluster(
     sim = new_sim()
     
     sim %<>% set_levels(
-      n = c(500, 1000, 2000, 4000),
+      # n = c(500, 1000, 2000, 4000),
+      n = c(500, 1000),
       surv_time = list(
         "Exp" = list(surv_type = "Exponential", surv_params = 1.5e-2), # may be some problems
         "Gom" = list(surv_type = "Gompertz", surv_params = c(0.2138, 7e-8))
@@ -225,16 +251,16 @@ run_on_cluster(
       return(data)
     }
     
-    sim %<>% set_config(num_sim = 1000, n_cores = 4, seed = 1018,
+    sim %<>% set_config(num_sim = 100, n_cores = 4, seed = 1018,
                         packages = c("survival", "parallel", "truncnorm", "devtools", "ipw")
                         )
     
     sim %<>% set_script(function() {
       dat_phaseOne = create_data(L$n, L$surv_time$surv_type, L$surv_time$surv_params)
-      model_one = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_phaseOne, weights = ipw)
+      model_one = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_phaseOne)
       dat_phaseTwo = dat_phaseOne %>%
         dplyr::filter(Z == 1 & treat == 1) # use phase two data
-      model_two = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_phaseTwo, weights = ipw)
+      model_two = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_phaseTwo)
       wt_phase = nrow(dat_phaseTwo) / nrow(dat_phaseOne)
       
       # choose a specific time
@@ -245,15 +271,22 @@ run_on_cluster(
       }
       t = which.min(abs(true - 0.5))
       
+      # bootstrap
+      surv_ci = boot_ci(model_two, wt_phase, dat_phaseTwo, t)
+      
       # get the Survival probability at the specific time point
       Q_true = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, model_one, t, dat_phaseOne)
-      Q_est_cox = surv_cox(model_one, t)
+      Q_est_cox = surv_cox(model_two, t)
       Q_est_two = surv_two(model_two, t, wt_phase, dat_phaseTwo)
       
       return(list(
         "Q_true" = Q_true,
         "Q_est_cox" = Q_est_cox,
         "Q_est_two" = Q_est_two,
+        "cox_low" = surv_ci$cox_low,
+        "cox_up" = surv_ci$cox_up,
+        "two_low" = surv_ci$two_low,
+        "two_up" = surv_ci$two_up,
         "cox_pctg" = (Q_est_cox - Q_true) / Q_true * 100,
         "two_pctg" = (Q_est_two - Q_true) / Q_true *100,
         ".complex" = list(
@@ -277,8 +310,9 @@ run_on_cluster(
     # bias
     bias_Q = sim %>% SimEngine::summarize(
       list(stat = "bias", estimate = "Q_est_cox", truth = "Q_true", name = "bias_cox"),
-      list(stat = "bias", estimate = "Q_est_two", truth = "Q_true", name = "bias_twophase")
-      # list(stat = "coverage", estimate = "beta_X1_hat", se = "beta_X1_se", truth = 0.15, name = "cov_beta_X1"),
+      list(stat = "bias", estimate = "Q_est_two", truth = "Q_true", name = "bias_twophase"),
+      list(stat = "coverage", lower = "cox_low", upper = "cox_up", truth = "Q_true", name = "cov_surv_cox"),
+      list(stat = "coverage", lower = "two_low", upper = "two_up", truth = "Q_true", name = "cov_surv_twophase")
     )
     # bias percentage
     bias_Q_pct = sim %>% SimEngine::summarize(

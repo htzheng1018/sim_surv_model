@@ -104,20 +104,31 @@ summary(model2)
 
 
 # true survival function
-surv_true = function(surv_params, model, t, data) {
-  alpha = surv_params[1]
-  lambda = surv_params[2]
-  Q_0 = exp(lambda/alpha * (1 - exp(alpha*t)))
+surv_true = function(surv_type, surv_params, model, t, data) {
+  if (surv_type == "Exponential") {
+    lambda = surv_params
+    Q_0 = exp(- lambda * t)
+  } else if ( surv_type == "Gompertz") {
+    alpha = surv_params[1]
+    lambda = surv_params[2]
+    Q_0 = exp(lambda/alpha * (1 - exp(alpha*t)))
+  }
   beta = model$coefficients
   X_S = data[, c(names(model$coefficients))]
-  result = Q_0 ^ (exp(beta %*% t(X_S)))
-  return(mean(result))
+  result = mean(Q_0 ^ (exp(beta %*% t(X_S))))
+  return((result))
 }
 
-
+# Coxph estimated survival function
+surv_cox = function(model, t) {
+  Q_fit = survfit(model)
+  index = which.min(abs(Q_fit$time - t))
+  result = Q_fit$surv[index]
+  return(result)
+}
 
 # Two Phase Sampling estimated survival function
-surv_est = function(model, t, wt, data) {
+surv_two = function(model, t, wt, data) {
   bh_1 = basehaz(model, centered = F)
   index = which.min(abs(bh_1$time - t))
   
@@ -133,38 +144,28 @@ surv_est = function(model, t, wt, data) {
 
 
 
-# Coxph estimated survival function
-surv_cox = function(model, t) {
-  Q_fit = survfit(model)
-  index = which.min(abs(Q_fit$time - t))
-  result = Q_fit$surv[index]
-  return(result)
-}
-
-
-
 # get the complete survival functions of all of them
 time_max = round(max(dat_phaseOne$Y))
 true = c()
-est = c()
+est_two = c()
 est_cox = c()
 for (i in 1: time_max) {
-  true[i] = surv_true(surv_params, model1, i, dat_phaseOne)
-  est[i] = surv_est(model2, i, wt_phase, dat_phaseTwo)
-  est_cox[i] = surv_cox(model1, i)
+  true[i] = surv_true(surv_type, surv_params, model1, i, dat_phaseOne)
+  est_two[i] = surv_two(model2, i, wt_phase, dat_phaseTwo)
+  est_cox[i] = surv_cox(model2, i)
 }
-result = data.frame(time = (1: time_max), true = true, est = est, est_cox = est_cox)
+result = data.frame(time = (1: time_max), true = true, est = est_two, est_cox = est_cox)
 
 
 
 # plot the survival function
 ggplot(result, aes(x = time)) +
   geom_line(aes(y = true, color = "true"), linewidth = 1) +
-  geom_line(aes(y = est, color = "est"), linewidth = 1) +
+  geom_line(aes(y = est_two, color = "est_twophase"), linewidth = 1) +
   geom_line(aes(y = est_cox, color = "est_cox"), linewidth = 1) +
   labs(x = "Time", y = "Survival Probability", color = "Legend") +
   theme_minimal() +
-  scale_color_manual(values = c("true" = "blue", "est" = "red", "est_cox" = "green")) +
+  scale_color_manual(values = c("true" = "blue", "est_twophase" = "red", "est_cox" = "green")) +
   theme(legend.position = c(0.9, 0.9)) +
   ggtitle("Survival Curves")
 
