@@ -121,6 +121,14 @@ surv_true = function(surv_type, surv_params, t, data) {
   return(mean(result))
 }
 
+# Kaplan Meier estimated survival function
+surv_km = function(t, data) {
+  km.est = survfit(Surv(Y, delta) ~ 1, data = data, conf.type = "log-log")
+  index = which.min(abs(km.est$time - t))
+  result = km.est$surv[index]
+  return(result)
+}
+
 # Coxph estimated survival function
 surv_cox = function(model, t) {
   Q_fit = survfit(model)
@@ -151,23 +159,26 @@ time_max = round(max(dat_phaseOne$Y))
 true = c()
 est_two = c()
 est_cox = c()
+est_km = c()
 for (i in 1: time_max) {
   true[i] = surv_true(surv_type, surv_params, i, dat_phaseOne)
   est_two[i] = surv_two(model2, i, wt_phase, dat_phaseTwo)
   est_cox[i] = surv_cox(model2, i)
+  est_km[i] = surv_km(i, dat_phaseTwo)
 }
-result = data.frame(time = (1: time_max), true = true, est = est_two, est_cox = est_cox)
+result = data.frame(time = (1: time_max), true = true, est_km = est_km, est_cox = est_cox, est = est_two)
 
 
 
 # plot the survival function
 ggplot(result, aes(x = time)) +
   geom_line(aes(y = true, color = "true"), linewidth = 1) +
-  geom_line(aes(y = est_two, color = "est_twophase"), linewidth = 1) +
+  geom_line(aes(y = est_km, color = "est_km"), linewidth = 1) +
   geom_line(aes(y = est_cox, color = "est_cox"), linewidth = 1) +
+  geom_line(aes(y = est_two, color = "est_twophase"), linewidth = 1) +
   labs(x = "Time", y = "Survival Probability", color = "Legend") +
   theme_minimal() +
-  scale_color_manual(values = c("true" = "blue", "est_twophase" = "red", "est_cox" = "green")) +
+  scale_color_manual(values = c("true" = "blue", "est_km" = "yellow", "est_cox" = "green", "est_twophase" = "red")) +
   theme(legend.position = c(0.9, 0.9)) +
   ggtitle("Survival Curves")
 
