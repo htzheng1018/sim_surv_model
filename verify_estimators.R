@@ -93,21 +93,21 @@ create_data = function(n, surv_type, surv_params) {
 
 # get the phase one data
 dat_phaseOne = create_data(n, surv_type, surv_params)
-model1 = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_phaseOne)
+model1 = coxph(Surv(Y, delta) ~ X1 + X2 + S + treat, data = dat_phaseOne)
 summary(model1)
 
 # get the phase two data
 dat_phaseTwo = dat_phaseOne
 dat_phaseTwo = dat_phaseOne %>%
-  dplyr::filter(Z == 1 & treat == 1) # use phase two data
+  dplyr::filter(Z == 1) # use phase two data
 wt_phase = nrow(dat_phaseTwo) / nrow(dat_phaseOne)
-model2 = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_phaseTwo, weights = ipw)
+model2 = coxph(Surv(Y, delta) ~ X1 + X2 + S + treat, data = dat_phaseTwo, weights = ipw)
 summary(model2)
 
 
 
 # true survival function
-surv_true = function(surv_type, surv_params, model, t, data) {
+surv_true = function(surv_type, surv_params, t, data) {
   if (surv_type == "Exponential") {
     lambda = surv_params
     Q_0 = exp(- lambda * t)
@@ -116,10 +116,9 @@ surv_true = function(surv_type, surv_params, model, t, data) {
     lambda = surv_params[2]
     Q_0 = exp(lambda/alpha * (1 - exp(alpha*t)))
   }
-  beta = model$coefficients
-  X_S = data[, c(names(model$coefficients))]
-  result = mean(Q_0 ^ (exp(beta %*% t(X_S))))
-  return((result))
+  unprop = 0.15*data$X1 + 0.001*data$X2 - 5*data$S + data$treat
+  result = Q_0 ^ (exp(unprop))
+  return(mean(result))
 }
 
 # Coxph estimated survival function
@@ -139,9 +138,9 @@ surv_two = function(model, t, wt, data) {
   
   beta = model$coefficients
   X_S = data[, c(names(model$coefficients))]
-  proportional = exp(beta %*% t(X_S))
+  unprop = exp(beta %*% t(X_S))
   
-  result = exp(- Q_0 * wt * proportional)
+  result = exp(- Q_0 * wt * unprop)
   return(mean(result))
 }
 
@@ -153,7 +152,7 @@ true = c()
 est_two = c()
 est_cox = c()
 for (i in 1: time_max) {
-  true[i] = surv_true(surv_type, surv_params, model1, i, dat_phaseOne)
+  true[i] = surv_true(surv_type, surv_params, i, dat_phaseOne)
   est_two[i] = surv_two(model2, i, wt_phase, dat_phaseTwo)
   est_cox[i] = surv_cox(model2, i)
 }

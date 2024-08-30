@@ -89,16 +89,16 @@ create_data = function(n, surv_type, surv_params) {
 
 
 dat_phaseOne = create_data(n, surv_type, surv_params)
-model1 = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_phaseOne)
+model1 = coxph(Surv(Y, delta) ~ X1 + X2 + S + treat, data = dat_phaseOne)
 dat_phaseTwo = dat_phaseOne %>%
-  dplyr::filter(Z == 1 & treat == 1) # use phase two data
+  dplyr::filter(Z == 1) # use phase two data
 wt_phase = nrow(dat_phaseTwo) / nrow(dat_phaseOne)
-model2 = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_phaseTwo)
+model2 = coxph(Surv(Y, delta) ~ X1 + X2 + S + treat, data = dat_phaseTwo)
 
 
 
 # true survival function
-surv_true = function(surv_type, surv_params, model, t, data) {
+surv_true = function(surv_type, surv_params, t, data) {
   if (surv_type == "Exponential") {
     lambda = surv_params
     Q_0 = exp(- lambda * t)
@@ -107,10 +107,9 @@ surv_true = function(surv_type, surv_params, model, t, data) {
     lambda = surv_params[2]
     Q_0 = exp(lambda/alpha * (1 - exp(alpha*t)))
   }
-  beta = model$coefficients
-  X_S = data[, c(names(model$coefficients))]
-  result = mean(Q_0 ^ (exp(beta %*% t(X_S))))
-  return((result))
+  unprop = 0.15*data$X1 + 0.001*data$X2 - 5*data$S + data$treat
+  result = Q_0 ^ (exp(unprop))
+  return(mean(result))
 }
 
 # Coxph estimated survival function
@@ -130,9 +129,9 @@ surv_two = function(model, t, wt, data) {
   
   beta = model$coefficients
   X_S = data[, c(names(model$coefficients))]
-  proportional = exp(beta %*% t(X_S))
+  unprop = exp(beta %*% t(X_S))
   
-  result = exp(- Q_0 * wt * proportional)
+  result = exp(- Q_0 * wt * unprop)
   return(mean(result))
 }
 
@@ -143,17 +142,17 @@ time_max = round(max(dat_phaseOne$Y))
 true = c()
 est = c()
 for (i in 1: time_max) {
-  true[i] = surv_true(surv_type, surv_params, model1, i, dat_phaseOne)
+  true[i] = surv_true(surv_type, surv_params, i, dat_phaseOne)
   est[i] = surv_two(model2, i, wt_phase, dat_phaseTwo)
 }
 result = data.frame(time = (1: time_max), true = true, est = est)
 
 # bootstrap
-boot_ci = function(data, wt, time_max) {
+boot_ci = function(wt, data, time_max) {
   nn = nrow(data)
-  R = 1000
+  R = 100
   surv.boot = NULL
-
+  
   for (r in 1: R) {
     boot.samp = sample(1: nn, size = nn, replace = TRUE)
     data.boot = data[boot.samp, ]
@@ -171,7 +170,7 @@ boot_ci = function(data, wt, time_max) {
   return(result)
 }
 
-surv_ci = boot_ci(dat_phaseTwo, wt_phase, time_max)
+surv_ci = boot_ci(wt_phase, dat_phaseTwo, time_max)
 surv_ci = merge(surv_ci, result, by = "time")
 
 plot(surv_ci$time, surv_ci$est, type = "l", col="red", lwd=3)
