@@ -138,7 +138,7 @@ Bootstrap function
 ```{r}
 boot_ci = function(model, wt, data, t) {
   nn = nrow(data)
-  R = 100
+  R = 1000
   surv_cox.boot = c()
   surv_two.boot = c()
   
@@ -170,8 +170,8 @@ run_on_cluster(
     sim = new_sim()
     
     sim %<>% set_levels(
-      # n = c(500, 1000, 2000, 4000),
-      n = c(500, 1000),
+      n = c(500, 1000, 2000, 4000),
+      # n = c(500, 1000),
       surv_time = list(
         "Exp" = list(surv_type = "Exponential", surv_params = 1.5e-2), # may be some problems
         "Gom" = list(surv_type = "Gompertz", surv_params = c(0.2138, 7e-8))
