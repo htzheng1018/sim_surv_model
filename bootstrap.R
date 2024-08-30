@@ -174,10 +174,9 @@ surv_ci = boot_ci(wt_phase, dat_phaseTwo, time_max)
 surv_ci = merge(surv_ci, result, by = "time")
 
 plot(surv_ci$time, surv_ci$est, type = "l", col="red", lwd=3)
-lines(surv_ci$time, surv_ci$true, col="green", lwd=3)
-lines(surv_ci$time, surv_ci$low, col="blue", lwd=3)
-lines(surv_ci$time, surv_ci$up, col="blue", lwd=3)
-
+lines(surv_ci$time, surv_ci$low, col="yellow", lwd=3)
+lines(surv_ci$time, surv_ci$up, col="yellow", lwd=3)
+lines(surv_ci$time, surv_ci$true, col="blue", lwd=3)
 
 
 
