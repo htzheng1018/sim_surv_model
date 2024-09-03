@@ -91,7 +91,7 @@ create_data = function(n, surv_type, surv_params) {
 
 
 
-functions of true survival, Coxph estimated and Two-phase sampling estimated
+functions of true survival, KM estimated, Coxph estimated and Two-phase sampling estimated
 ```{r}
 # true survival function
 surv_true = function(surv_type, surv_params, t, data) {
@@ -142,6 +142,30 @@ surv_two = function(model, t, wt, data) {
 
 
 
+SE of KM estimator, Coxph estimator and Two-phase sampling estimator
+```{r}
+# SE for Kaplan Meier
+se_km = function(t, data) {
+  km.est = survfit(Surv(Y, delta) ~ 1, data = data, conf.type = "log-log")
+  index = which.min(abs(km.est$time - t))
+  result = summary(km.est)$std.err[index]
+  return(result)
+}
+
+# SE for Coxph
+se_cox = function(model, t) {
+  cox.est = survfit(model)
+  index = which.min(abs(cox.est$time - t))
+  result = summary(cox.est)$std.err[index]
+  return(result)
+}
+
+# SE for two-sphase sampling
+
+```
+
+
+
 Bootstrap function
 ```{r}
 boot_ci = function(wt, data, t) {
@@ -162,12 +186,12 @@ boot_ci = function(wt, data, t) {
   ci_km = quantile(surv_km.boot, prob = c(0.025, 0.975))
   ci_cox = quantile(surv_cox.boot, prob = c(0.025, 0.975))
   ci_two = quantile(surv_two.boot, prob = c(0.025, 0.975))
-  se_km = sqrt(sum((surv_km.boot - mean(surv_km.boot)) ^ 2) / (R - 1))
-  se_cox = sqrt(sum((surv_cox.boot - mean(surv_cox.boot)) ^ 2) / (R - 1))
-  se_two = sqrt(sum((surv_two.boot - mean(surv_two.boot)) ^ 2) / (R - 1))
-  result = data.frame(km_low = ci_km[1], km_up = ci_km[2], se_km = se_km,
-                      cox_low = ci_cox[1], cox_up = ci_cox[2], se_cox = se_cox,
-                      two_low = ci_two[1], two_up = ci_two[2], se_two = se_two)
+  km_se = sqrt(sum((surv_km.boot - mean(surv_km.boot)) ^ 2) / (R - 1))
+  cox_se = sqrt(sum((surv_cox.boot - mean(surv_cox.boot)) ^ 2) / (R - 1))
+  two_se = sqrt(sum((surv_two.boot - mean(surv_two.boot)) ^ 2) / (R - 1))
+  result = data.frame(km_low = ci_km[1], km_up = ci_km[2], km_se = km_se,
+                      cox_low = ci_cox[1], cox_up = ci_cox[2], cox_se = cox_se,
+                      two_low = ci_two[1], two_up = ci_two[2], two_se = two_se)
   return(result)
 }
 ```
@@ -222,6 +246,10 @@ run_on_cluster(
       Q_est_cox = surv_cox(model_two, t)
       Q_est_two = surv_two(model_two, t, wt_phase, dat_phaseTwo)
       
+      # get the SE
+      se_est_km = se_km(t, dat_phaseTwo)
+      se_est_cox = se_cox(model_two, t)
+      
       return(list(
         "Q_true" = Q_true,
         "Q_est_km" = Q_est_km,
@@ -229,19 +257,24 @@ run_on_cluster(
         "Q_est_two" = Q_est_two,
         "km_low" = surv_ci$km_low,
         "km_up" = surv_ci$km_up,
-        "se_km" = surv_ci$se_km,
+        "se_km_boot" = surv_ci$km_se,
+        "se_km_est" = se_est_km,
         "cox_low" = surv_ci$cox_low,
         "cox_up" = surv_ci$cox_up,
-        "se_cox" = surv_ci$se_cox,
+        "se_cox_boot" = surv_ci$cox_se,
+        "se_cox_est" = se_est_cox,
         "two_low" = surv_ci$two_low,
         "two_up" = surv_ci$two_up,
-        "se_two" = surv_ci$se_two,
+        "se_two_boot" = surv_ci$two_se,
         "km_pctg" = (Q_est_km - Q_true) / Q_true * 100,
         "cox_pctg" = (Q_est_cox - Q_true) / Q_true * 100,
         "two_pctg" = (Q_est_two - Q_true) / Q_true *100,
+        "se_km_pctg" = (surv_ci$km_se - se_est_km) / se_est_km * 100,
+        "se_cox_pctg" = (surv_ci$cox_se - se_est_cox) / se_est_cox * 100,
         ".complex" = list(
           "model" = model_two,
-          "data" = dat_phaseTwo
+          "data" = dat_phaseTwo,
+          "ci" = surv_ci
         )
       ))
     })
@@ -275,9 +308,11 @@ run_on_cluster(
     )
     # SE accuracy
     accuracy_se = sim %>% SimEngine::summarize(
-      list(stat = "mean", x = "se_km", name = "bias_se_km"),
-      list(stat = "mean", x = "se_cox", name = "bias_se_cox"),
-      list(stat = "mean", x = "se_two", name = "bias_se_two")
+      list(stat = "mean", x = "se_km_boot", name = "bias_se_km"),
+      list(stat = "mean", x = "se_cox_boot", name = "bias_se_cox"),
+      list(stat = "mean", x = "se_two_boot", name = "bias_se_two"),
+      list(stat = "mean", x = "se_km_pctg", name = "se_bias_km_pct"),
+      list(stat = "mean", x = "se_cox_pctg", name = "se_bias_cox_pct")
     )
   },
   
