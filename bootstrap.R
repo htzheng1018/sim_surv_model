@@ -8,6 +8,9 @@ library(ggplot2)
 
 
 
+# This file aims at calculating the standard error of the two-sample estimator, and plot the curves to compare the estimator and the true survival function.
+# It can be ran both locally and in a cluster.
+
 n = 1000
 surv_type = "Gompertz"
 surv_params = c(0.2138, 7e-8)
@@ -164,9 +167,10 @@ boot_ci = function(wt, data, time_max) {
     }
     surv.boot = rbind(surv.boot, est)
   }
-  ci.boot = apply(surv.boot, 2, quantile, prob = c(0.025, 0.975))
+  ci = apply(surv.boot, 2, quantile, prob = c(0.025, 0.975))
+  se = sqrt(colSums((surv.boot - colMeans(surv.boot)) ^ 2) / (R - 1))
   result = data.frame(time = (1: time_max),
-                      low = ci.boot[1, ], up = ci.boot[2, ])
+                      low = ci[1, ], up = ci[2, ], se = se)
   return(result)
 }
 

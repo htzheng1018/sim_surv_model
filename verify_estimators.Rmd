@@ -159,12 +159,15 @@ boot_ci = function(wt, data, t) {
     surv_cox.boot[r] = surv_cox(model.boot, t)
     surv_two.boot[r] = surv_two(model.boot, t, wt, data)
   }
-  ci_km.boot = quantile(surv_km.boot, prob = c(0.025, 0.975))
-  ci_cox.boot = quantile(surv_cox.boot, prob = c(0.025, 0.975))
-  ci_two.boot = quantile(surv_two.boot, prob = c(0.025, 0.975))
-  result = data.frame(km_low = ci_km.boot[1], km_up = ci_km.boot[2],
-                      cox_low = ci_cox.boot[1], cox_up = ci_cox.boot[2],
-                      two_low = ci_two.boot[1], two_up = ci_two.boot[2])
+  ci_km = quantile(surv_km.boot, prob = c(0.025, 0.975))
+  ci_cox = quantile(surv_cox.boot, prob = c(0.025, 0.975))
+  ci_two = quantile(surv_two.boot, prob = c(0.025, 0.975))
+  se_km = sqrt(sum((surv_km.boot - mean(surv_km.boot)) ^ 2) / (R - 1))
+  se_cox = sqrt(sum((surv_cox.boot - mean(surv_cox.boot)) ^ 2) / (R - 1))
+  se_two = sqrt(sum((surv_two.boot - mean(surv_two.boot)) ^ 2) / (R - 1))
+  result = data.frame(km_low = ci_km[1], km_up = ci_km[2], se_km = se_km,
+                      cox_low = ci_cox[1], cox_up = ci_cox[2], se_cox = se_cox,
+                      two_low = ci_two[1], two_up = ci_two[2], se_two = se_two)
   return(result)
 }
 ```
@@ -226,10 +229,13 @@ run_on_cluster(
         "Q_est_two" = Q_est_two,
         "km_low" = surv_ci$km_low,
         "km_up" = surv_ci$km_up,
+        "se_km" = surv_ci$se_km,
         "cox_low" = surv_ci$cox_low,
         "cox_up" = surv_ci$cox_up,
+        "se_cox" = surv_ci$se_cox,
         "two_low" = surv_ci$two_low,
         "two_up" = surv_ci$two_up,
+        "se_two" = surv_ci$se_two,
         "km_pctg" = (Q_est_km - Q_true) / Q_true * 100,
         "cox_pctg" = (Q_est_cox - Q_true) / Q_true * 100,
         "two_pctg" = (Q_est_two - Q_true) / Q_true *100,
@@ -266,6 +272,12 @@ run_on_cluster(
       list(stat = "mean", x = "km_pctg", name = "bias_km_pct"),
       list(stat = "mean", x = "cox_pctg", name = "bias_cox_pct"),
       list(stat = "mean", x = "two_pctg", name = "bias_twophase_pct")
+    )
+    # SE accuracy
+    accuracy_se = sim %>% SimEngine::summarize(
+      list(stat = "mean", x = "se_km", name = "bias_se_km"),
+      list(stat = "mean", x = "se_cox", name = "bias_se_cox"),
+      list(stat = "mean", x = "se_two", name = "bias_se_two")
     )
   },
   
