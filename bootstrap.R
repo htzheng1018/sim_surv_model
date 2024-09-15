@@ -14,6 +14,8 @@ library(ggplot2)
 n = 1000
 surv_type = "Gompertz"
 surv_params = c(0.2138, 7e-8)
+# surv_type = "Exponential"
+# surv_params = 1.5e-2
 
 
 
@@ -159,7 +161,7 @@ boot_ci = function(wt, data, time_max) {
   for (r in 1: R) {
     boot.samp = sample(1: nn, size = nn, replace = TRUE)
     data.boot = data[boot.samp, ]
-    model.boot = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = data.boot)
+    model.boot = coxph(Surv(Y, delta) ~ X1 + X2 + S + treat, data = data.boot)
     
     est = c()
     for (i in 1: time_max) {

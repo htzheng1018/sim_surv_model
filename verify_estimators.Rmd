@@ -66,7 +66,9 @@ create_data = function(n, surv_type, surv_params) {
   # two-phase indicator
   t0 = 200 # set the time of interest
   prob_tmp = 1 / (1 + exp(0.15*X1 + 0.001*X2 - 1))
+  # prob_tmp = 0.7
   Z = delta*I(Y <= t0) + (1 - delta*I(Y <= t0)) * rbinom(n = n, size = 1, prob = prob_tmp)
+  
   
   # temporary dataframe
   data = data.frame("id" = id, "treat" = treat, "Y" = Y, "delta" = delta, "S" = S, "X1" = X1, "X2" = X2, "Z" = Z)
@@ -166,11 +168,11 @@ se_cox = function(model, t) {
 
 
 
-Bootstrap function
+Bootstrap function (two-phase)
 ```{r}
 boot_ci = function(wt, data, t) {
   nn = nrow(data)
-  R = 100
+  R = 1000
   surv_km.boot = c()
   surv_cox.boot = c()
   surv_two.boot = c()
@@ -178,7 +180,7 @@ boot_ci = function(wt, data, t) {
   for (r in 1: R) {
     boot.samp = sample(1: nn, size = nn, replace = TRUE)
     data.boot = data[boot.samp, ]
-    model.boot = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = data.boot)
+    model.boot = coxph(Surv(Y, delta) ~ X1 + X2 + S + treat, data = data.boot, weights = ipw)
     surv_km.boot[r] = surv_km(t, data.boot)
     surv_cox.boot[r] = surv_cox(model.boot, t)
     surv_two.boot[r] = surv_two(model.boot, t, wt, data)
@@ -209,8 +211,8 @@ run_on_cluster(
     sim = new_sim()
     
     sim %<>% set_levels(
-      # n = c(500, 1000, 2000, 4000),
-      n = c(500, 1000),
+      n = c(500, 1000, 2000, 4000),
+      # n = c(500),
       surv_time = list(
         "Exp" = list(surv_type = "Exponential", surv_params = 1.5e-2), # may be some problems
         "Gom" = list(surv_type = "Gompertz", surv_params = c(0.2138, 7e-8))
@@ -226,7 +228,7 @@ run_on_cluster(
       model_one = coxph(Surv(Y, delta) ~ X1 + X2 + S + treat, data = dat_phaseOne)
       dat_phaseTwo = dat_phaseOne %>%
         dplyr::filter(Z == 1) # use phase two data
-      model_two = coxph(Surv(Y, delta) ~ X1 + X2 + S + treat, data = dat_phaseTwo)
+      model_two = coxph(Surv(Y, delta) ~ X1 + X2 + S + treat, data = dat_phaseTwo, weights = ipw)
       wt_phase = nrow(dat_phaseTwo) / nrow(dat_phaseOne)
       
       # choose a specific time
@@ -239,6 +241,7 @@ run_on_cluster(
       
       # bootstrap
       surv_ci = boot_ci(wt_phase, dat_phaseTwo, t)
+      # surv_ci = boot_ci(1, dat_phaseOne, t)
       
       # get the Survival probability at the specific time point
       Q_true = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, t, dat_phaseOne)
