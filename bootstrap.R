@@ -68,21 +68,23 @@ create_data = function(n, surv_type, surv_params) {
   
   # two-phase indicator
   t0 = 200 # set the time of interest
-  prob_tmp = 1 / (1 + exp(0.15*X1 + 0.001*X2 - 1))
+  # prob_tmp = 1 / (1 + exp(0.15*X1 + 0.001*X2 - 1))
+  prob_tmp = 0.7
   Z = delta*I(Y <= t0) + (1 - delta*I(Y <= t0)) * rbinom(n = n, size = 1, prob = prob_tmp)
   
   # temporary dataframe
   data = data.frame("id" = id, "treat" = treat, "Y" = Y, "delta" = delta, "S" = S, "X1" = X1, "X2" = X2, "Z" = Z)
   
-  # using ipwpoint function to generate inverse probability weights
-  ip_weights = ipwpoint(
-    exposure = Z,
-    family = "binomial",  # The treatment is binary
-    link = "logit",
-    denominator = ~ treat + delta + S + X1 + X2,
-    data = data
-  )$ipw.weights
-  #ip_weights = 1 / prob_tmp # we can also use this directly as the ip_weights
+  # # using ipwpoint function to generate inverse probability weights
+  # ip_weights = ipwpoint(
+  #   exposure = Z,
+  #   family = "binomial",  # The treatment is binary
+  #   link = "logit",
+  #   denominator = ~ treat + delta + S + X1 + X2,
+  #   data = data
+  # )$ipw.weights
+  ip_weights = ifelse(Z == 1, 1 / prob_tmp, NA)
+  ip_weights = ip_weights / sum(ip_weights, na.rm = TRUE) * length(ip_weights) # normalize
   
   # final data
   data = data %>% 
@@ -97,8 +99,8 @@ dat_phaseOne = create_data(n, surv_type, surv_params)
 model1 = coxph(Surv(Y, delta) ~ X1 + X2 + S + treat, data = dat_phaseOne)
 dat_phaseTwo = dat_phaseOne %>%
   dplyr::filter(Z == 1) # use phase two data
+model2 = coxph(Surv(Y, delta) ~ X1 + X2 + S + treat, data = dat_phaseTwo, weights = ipw)
 wt_phase = nrow(dat_phaseTwo) / nrow(dat_phaseOne)
-model2 = coxph(Surv(Y, delta) ~ X1 + X2 + S + treat, data = dat_phaseTwo)
 
 
 
@@ -161,7 +163,7 @@ boot_ci = function(wt, data, time_max) {
   for (r in 1: R) {
     boot.samp = sample(1: nn, size = nn, replace = TRUE)
     data.boot = data[boot.samp, ]
-    model.boot = coxph(Surv(Y, delta) ~ X1 + X2 + S + treat, data = data.boot)
+    model.boot = coxph(Surv(Y, delta) ~ X1 + X2 + S + treat, data = data.boot, weights = ipw)
     
     est = c()
     for (i in 1: time_max) {
@@ -180,8 +182,8 @@ surv_ci = boot_ci(wt_phase, dat_phaseTwo, time_max)
 surv_ci = merge(surv_ci, result, by = "time")
 
 plot(surv_ci$time, surv_ci$est, type = "l", col="red", lwd=3)
-lines(surv_ci$time, surv_ci$low, col="yellow", lwd=3)
-lines(surv_ci$time, surv_ci$up, col="yellow", lwd=3)
+lines(surv_ci$time, surv_ci$low, col="green", lwd=3)
+lines(surv_ci$time, surv_ci$up, col="green", lwd=3)
 lines(surv_ci$time, surv_ci$true, col="blue", lwd=3)
 
 

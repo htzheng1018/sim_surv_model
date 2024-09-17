@@ -66,7 +66,7 @@ create_data = function(n, surv_type, surv_params) {
   # two-phase indicator
   t0 = 200 # set the time of interest
   prob_tmp = 1 / (1 + exp(0.15*X1 + 0.001*X2 - 1))
-  # prob_tmp = 0.7
+  prob_tmp = 0.7
   Z = delta*I(Y <= t0) + (1 - delta*I(Y <= t0)) * rbinom(n = n, size = 1, prob = prob_tmp)
   
   
@@ -74,14 +74,15 @@ create_data = function(n, surv_type, surv_params) {
   data = data.frame("id" = id, "treat" = treat, "Y" = Y, "delta" = delta, "S" = S, "X1" = X1, "X2" = X2, "Z" = Z)
   
   # using ipwpoint function to generate inverse probability weights
-  ip_weights = ipwpoint(
-    exposure = Z,
-    family = "binomial",  # The treatment is binary
-    link = "logit",
-    denominator = ~ treat + delta + S + X1 + X2,
-    data = data
-  )$ipw.weights
-  #ip_weights = 1 / prob_tmp # we can also use this directly as the ip_weights
+  # ip_weights = ipwpoint(
+  #   exposure = Z,
+  #   family = "binomial",  # The treatment is binary
+  #   link = "logit",
+  #   denominator = ~ treat + delta + S + X1 + X2,
+  #   data = data
+  # )$ipw.weights
+  ip_weights = ifelse(Z == 1, 1 / prob_tmp, NA)
+  ip_weights = ip_weights / sum(ip_weights, na.rm = TRUE) * length(ip_weights) # normalize
   
   # final data
   data = data %>% 
@@ -172,7 +173,7 @@ Bootstrap function (two-phase)
 ```{r}
 boot_ci = function(wt, data, t) {
   nn = nrow(data)
-  R = 1000
+  R = 100
   surv_km.boot = c()
   surv_cox.boot = c()
   surv_two.boot = c()
@@ -211,8 +212,8 @@ run_on_cluster(
     sim = new_sim()
     
     sim %<>% set_levels(
-      n = c(500, 1000, 2000, 4000),
-      # n = c(500),
+      # n = c(500, 1000, 2000, 4000),
+      n = c(500),
       surv_time = list(
         "Exp" = list(surv_type = "Exponential", surv_params = 1.5e-2), # may be some problems
         "Gom" = list(surv_type = "Gompertz", surv_params = c(0.2138, 7e-8))
@@ -241,7 +242,6 @@ run_on_cluster(
       
       # bootstrap
       surv_ci = boot_ci(wt_phase, dat_phaseTwo, t)
-      # surv_ci = boot_ci(1, dat_phaseOne, t)
       
       # get the Survival probability at the specific time point
       Q_true = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, t, dat_phaseOne)
