@@ -69,7 +69,6 @@ create_data = function(n, surv_type, surv_params) {
   prob_tmp = 0.7
   Z = delta*I(Y <= t0) + (1 - delta*I(Y <= t0)) * rbinom(n = n, size = 1, prob = prob_tmp)
   
-  
   # temporary dataframe
   data = data.frame("id" = id, "treat" = treat, "Y" = Y, "delta" = delta, "S" = S, "X1" = X1, "X2" = X2, "Z" = Z)
   
@@ -143,20 +142,25 @@ SE of KM estimator and Two-phase sampling estimator
 se_km = function(t, data) {
   km.est = survfit(Surv(Y, delta) ~ 1, data = data, conf.type = "log-log")
   index = which.min(abs(km.est$time - t))
-  result = summary(km.est)$std.err[index]
-  return(result)
-}
-
-# SE for Coxph
-se_cox = function(model, t) {
-  cox.est = survfit(model)
-  index = which.min(abs(cox.est$time - t))
-  result = summary(cox.est)$std.err[index]
+  result = km.est$std.err[index]
   return(result)
 }
 
 # SE for two-sphase sampling
-
+se_two = function(t, data) {
+  nn = nrow(data)
+  R = 100
+  surv_two.boot = c()
+  
+  for (r in 1: R) {
+    boot.samp = sample(1: nn, size = nn, replace = TRUE)
+    data.boot = data[boot.samp, ]
+    model.boot = coxph(Surv(Y, delta) ~ X1 + X2 + S + treat, data = data.boot)
+    surv_two.boot[r] = surv_two(model.boot, t, 1, data)
+  }
+  result = sqrt(sum((surv_two.boot - mean(surv_two.boot)) ^ 2) / (R - 1))
+  return(result)
+}
 ```
 
 
@@ -167,7 +171,6 @@ boot_ci = function(wt, data, t) {
   nn = nrow(data)
   R = 100
   surv_km.boot = c()
-  surv_cox.boot = c()
   surv_two.boot = c()
   
   for (r in 1: R) {
@@ -236,8 +239,9 @@ run_on_cluster(
       Q_est_km = surv_km(t, dat_phaseTwo)
       Q_est_two = surv_two(model_two, t, wt_phase, dat_phaseTwo)
       
-      # get the SE
-      se_est_km = se_km(t, dat_phaseTwo)
+      # get the true SE
+      se_est_km = se_km(t, dat_phaseOne)
+      se_est_two = se_two(t, dat_phaseOne)
       
       return(list(
         "Q_true" = Q_true,
@@ -250,9 +254,11 @@ run_on_cluster(
         "two_low" = surv_ci$two_low,
         "two_up" = surv_ci$two_up,
         "se_two_boot" = surv_ci$two_se,
+        "se_km_est" = se_est_two,
         "km_pctg" = (Q_est_km - Q_true) / Q_true * 100,
         "two_pctg" = (Q_est_two - Q_true) / Q_true *100,
         "se_km_pctg" = (surv_ci$km_se - se_est_km) / se_est_km * 100,
+        "se_two_pctg" = (surv_ci$two_se - se_est_two) / se_est_two * 100,
         ".complex" = list(
           "model" = model_two,
           "data" = dat_phaseTwo,
@@ -288,7 +294,8 @@ run_on_cluster(
     accuracy_se = sim %>% SimEngine::summarize(
       list(stat = "mean", x = "se_km_boot", name = "bias_se_km"),
       list(stat = "mean", x = "se_two_boot", name = "bias_se_two"),
-      list(stat = "mean", x = "se_km_pctg", name = "se_bias_km_pct")
+      list(stat = "mean", x = "se_km_pctg", name = "se_bias_km_pct"),
+      list(stat = "mean", x = "se_two_pctg", name = "se_bias_two_pct")
     )
   },
   
