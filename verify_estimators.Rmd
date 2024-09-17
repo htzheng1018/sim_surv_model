@@ -94,7 +94,7 @@ create_data = function(n, surv_type, surv_params) {
 
 
 
-functions of true survival, KM estimated, Coxph estimated and Two-phase sampling estimated
+functions of true survival, KM estimated and Two-phase sampling estimated
 ```{r}
 # true survival function
 surv_true = function(surv_type, surv_params, t, data) {
@@ -119,14 +119,6 @@ surv_km = function(t, data) {
   return(result)
 }
 
-# Coxph estimated survival function
-surv_cox = function(model, t) {
-  cox.est = survfit(model)
-  index = which.min(abs(cox.est$time - t))
-  result = cox.est$surv[index]
-  return(result)
-}
-
 # Two Phase Sampling estimated survival function
 surv_two = function(model, t, wt, data) {
   bh_1 = basehaz(model, centered = F)
@@ -145,7 +137,7 @@ surv_two = function(model, t, wt, data) {
 
 
 
-SE of KM estimator, Coxph estimator and Two-phase sampling estimator
+SE of KM estimator and Two-phase sampling estimator
 ```{r}
 # SE for Kaplan Meier
 se_km = function(t, data) {
@@ -183,17 +175,13 @@ boot_ci = function(wt, data, t) {
     data.boot = data[boot.samp, ]
     model.boot = coxph(Surv(Y, delta) ~ X1 + X2 + S + treat, data = data.boot, weights = ipw)
     surv_km.boot[r] = surv_km(t, data.boot)
-    surv_cox.boot[r] = surv_cox(model.boot, t)
     surv_two.boot[r] = surv_two(model.boot, t, wt, data)
   }
   ci_km = quantile(surv_km.boot, prob = c(0.025, 0.975))
-  ci_cox = quantile(surv_cox.boot, prob = c(0.025, 0.975))
   ci_two = quantile(surv_two.boot, prob = c(0.025, 0.975))
   km_se = sqrt(sum((surv_km.boot - mean(surv_km.boot)) ^ 2) / (R - 1))
-  cox_se = sqrt(sum((surv_cox.boot - mean(surv_cox.boot)) ^ 2) / (R - 1))
   two_se = sqrt(sum((surv_two.boot - mean(surv_two.boot)) ^ 2) / (R - 1))
   result = data.frame(km_low = ci_km[1], km_up = ci_km[2], km_se = km_se,
-                      cox_low = ci_cox[1], cox_up = ci_cox[2], cox_se = cox_se,
                       two_low = ci_two[1], two_up = ci_two[2], two_se = two_se)
   return(result)
 }
@@ -246,34 +234,25 @@ run_on_cluster(
       # get the Survival probability at the specific time point
       Q_true = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, t, dat_phaseOne)
       Q_est_km = surv_km(t, dat_phaseTwo)
-      Q_est_cox = surv_cox(model_two, t)
       Q_est_two = surv_two(model_two, t, wt_phase, dat_phaseTwo)
       
       # get the SE
       se_est_km = se_km(t, dat_phaseTwo)
-      se_est_cox = se_cox(model_two, t)
       
       return(list(
         "Q_true" = Q_true,
         "Q_est_km" = Q_est_km,
-        "Q_est_cox" = Q_est_cox,
         "Q_est_two" = Q_est_two,
         "km_low" = surv_ci$km_low,
         "km_up" = surv_ci$km_up,
         "se_km_boot" = surv_ci$km_se,
         "se_km_est" = se_est_km,
-        "cox_low" = surv_ci$cox_low,
-        "cox_up" = surv_ci$cox_up,
-        "se_cox_boot" = surv_ci$cox_se,
-        "se_cox_est" = se_est_cox,
         "two_low" = surv_ci$two_low,
         "two_up" = surv_ci$two_up,
         "se_two_boot" = surv_ci$two_se,
         "km_pctg" = (Q_est_km - Q_true) / Q_true * 100,
-        "cox_pctg" = (Q_est_cox - Q_true) / Q_true * 100,
         "two_pctg" = (Q_est_two - Q_true) / Q_true *100,
         "se_km_pctg" = (surv_ci$km_se - se_est_km) / se_est_km * 100,
-        "se_cox_pctg" = (surv_ci$cox_se - se_est_cox) / se_est_cox * 100,
         ".complex" = list(
           "model" = model_two,
           "data" = dat_phaseTwo,
@@ -292,30 +271,24 @@ run_on_cluster(
     # mean
     Q_true = sim %>% SimEngine::summarize(list(stat = "mean", x = "Q_true"))
     Q_est_km = sim %>% SimEngine::summarize(list(stat = "mean", x = "Q_est_km"))
-    Q_est_cox = sim %>% SimEngine::summarize(list(stat = "mean", x = "Q_est_cox"))
     Q_est_two = sim %>% SimEngine::summarize(list(stat = "mean", x = "Q_est_two"))
     # bias
     bias_Q = sim %>% SimEngine::summarize(
       list(stat = "bias", estimate = "Q_est_km", truth = "Q_true", name = "bias_km"),
-      list(stat = "bias", estimate = "Q_est_cox", truth = "Q_true", name = "bias_cox"),
       list(stat = "bias", estimate = "Q_est_two", truth = "Q_true", name = "bias_twophase"),
       list(stat = "coverage", lower = "km_low", upper = "km_up", truth = "Q_true", name = "cov_surv_km"),
-      list(stat = "coverage", lower = "cox_low", upper = "cox_up", truth = "Q_true", name = "cov_surv_cox"),
       list(stat = "coverage", lower = "two_low", upper = "two_up", truth = "Q_true", name = "cov_surv_twophase")
     )
     # bias percentage
     bias_Q_pct = sim %>% SimEngine::summarize(
       list(stat = "mean", x = "km_pctg", name = "bias_km_pct"),
-      list(stat = "mean", x = "cox_pctg", name = "bias_cox_pct"),
       list(stat = "mean", x = "two_pctg", name = "bias_twophase_pct")
     )
     # SE accuracy
     accuracy_se = sim %>% SimEngine::summarize(
       list(stat = "mean", x = "se_km_boot", name = "bias_se_km"),
-      list(stat = "mean", x = "se_cox_boot", name = "bias_se_cox"),
       list(stat = "mean", x = "se_two_boot", name = "bias_se_two"),
-      list(stat = "mean", x = "se_km_pctg", name = "se_bias_km_pct"),
-      list(stat = "mean", x = "se_cox_pctg", name = "se_bias_cox_pct")
+      list(stat = "mean", x = "se_km_pctg", name = "se_bias_km_pct")
     )
   },
   

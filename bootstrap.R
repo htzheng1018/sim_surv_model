@@ -119,11 +119,11 @@ surv_true = function(surv_type, surv_params, t, data) {
   return(mean(result))
 }
 
-# Coxph estimated survival function
-surv_cox = function(model, t) {
-  Q_fit = survfit(model)
-  index = which.min(abs(Q_fit$time - t))
-  result = Q_fit$surv[index]
+# Kaplan Meier estimated survival function
+surv_km = function(t, data) {
+  km.est = survfit(Surv(Y, delta) ~ 1, data = data, conf.type = "log-log")
+  index = which.min(abs(km.est$time - t))
+  result = km.est$surv[index]
   return(result)
 }
 
