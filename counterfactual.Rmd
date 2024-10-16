@@ -1,7 +1,7 @@
 ---
-title: "verify_estimators"
+title: "counterfactual"
 author: "Haotian Zheng"
-date: "2024-08-08"
+date: "2024-10-16"
 output: html_document
 ---
 
@@ -13,7 +13,7 @@ library(ggplot2)
 
 
 
-This file try to verify the bias of Survival estimators, and the coverage of it using a Bootstrap method.
+This file try to calculate the counterfactual Survival estimator, and the bias and coverage of it using a Bootstrap method.
 It can be ran both locally and in a cluster.
 ```{r}
 create_data = function(n, surv_type, surv_params) {
@@ -95,7 +95,7 @@ create_data = function(n, surv_type, surv_params) {
 
 
 
-functions of true survival, KM estimated and Two-phase sampling estimated
+functions of true survival and Two-phase sampling estimated
 ```{r}
 # true survival function
 surv_true = function(surv_type, surv_params, t, data) {
@@ -110,14 +110,6 @@ surv_true = function(surv_type, surv_params, t, data) {
   unprop = 0.15*data$X1 + 0.001*data$X2 - 5*data$S + data$treat
   result = Q_0 ^ (exp(unprop))
   return(mean(result))
-}
-
-# Kaplan Meier estimated survival function
-surv_km = function(t, data) {
-  km.est = survfit(Surv(Y, delta) ~ 1, data = data, conf.type = "log-log")
-  index = which.min(abs(km.est$time - t))
-  result = km.est$surv[index]
-  return(result)
 }
 
 # Two Phase Sampling estimated survival function
@@ -140,14 +132,6 @@ surv_two = function(model, t, data) {
 
 SE of KM estimator and Two-phase sampling estimator
 ```{r}
-# SE for Kaplan Meier
-se_km = function(t, data) {
-  km.est = survfit(Surv(Y, delta) ~ 1, data = data, conf.type = "log-log")
-  index = which.min(abs(km.est$time - t))
-  result = km.est$std.err[index]
-  return(result)
-}
-
 # SE for two-sphase sampling
 se_two = function(t, data) {
   nn = nrow(data)
@@ -219,10 +203,11 @@ run_on_cluster(
     
     sim %<>% set_script(function() {
       dat_phaseOne = create_data(L$n, L$surv_time$surv_type, L$surv_time$surv_params)
-      model_one = coxph(Surv(Y, delta) ~ X1 + X2 + S + treat, data = dat_phaseOne)
       dat_phaseTwo = dat_phaseOne %>%
         dplyr::filter(Z == 1) # use phase two data
-      model_two = coxph(Surv(Y, delta) ~ X1 + X2 + S + treat, data = dat_phaseTwo, weights = ipw)
+      dat_ctfct01 = dat_phaseTwo # counterfactual dataset
+      dat_ctfct01[dat_ctfct01$treat == 1, "S"] = 0 # S = 0 in condition of treat =1
+      model_ctfct01 = coxph(Surv(Y, delta) ~ X1 + X2 + S + treat, data = dat_ctfct01, weights = ipw) # counterfactual model
       
       # choose a specific time
       time_max = round(max(dat_phaseOne$Y))
@@ -232,13 +217,9 @@ run_on_cluster(
       }
       t = which.min(abs(true - 0.75))
       
-      # bootstrap to get the variance of true survival functions and estimators
-      surv_ci = boot_ci(dat_phaseTwo, t)
-      
-      # get the Survival probability at the specific time point
-      Q_true = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, t, dat_phaseOne)
-      Q_est_km = surv_km(t, dat_phaseTwo)
+      # get the counterfactual estimator at the specific time point
       Q_est_two = surv_two(model_two, t, dat_phaseTwo)
+      Q_est_two = surv_two()
       
       # get the true SE
       se_est_km = se_km(t, dat_phaseOne)
@@ -310,23 +291,4 @@ end_time = Sys.time()
 execution_time = end_time - start_time
 print(execution_time)
 ```
-
-
-
-plot
-```{r}
-ggplot(data.frame(
-  n = rep(c(500, 1000, 2000, 4000), 6),
-  surv = c(Q_true$mean_Q_true[1: 4], Q_est_cox$mean_Q_est_cox[1: 4], Q_est_two$mean_Q_est_two[1: 4],
-           Q_true$mean_Q_true[5: 8], Q_est_cox$mean_Q_est_cox[5: 8], Q_est_two$mean_Q_est_two[5: 8]),
-  which = rep(c("True Survival", "Coxph_estimator", "Twophase_estimator"), each = 4, times = 2),
-  model = rep(c("Exponential", "Gompertz"), each = 12)
-), aes(x = n, y = surv, color = factor(which))) +
-  geom_line() +
-  labs(color = "Method", y = "survival function", x = "Sample size (per group)") +
-  facet_wrap(~ model) +
-  theme_minimal()
-```
-
-
 
