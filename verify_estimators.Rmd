@@ -65,10 +65,10 @@ create_data = function(n, surv_type, surv_params) {
   
   # two-phase indicator
   # t0 = 20 # set the time of interest
-  prob_tmp = 1 / (1 + exp(0.15*X1 + 0.001*X2 - 1))
+  # prob_tmp = 1 / (1 + exp(0.15*X1 + 0.001*X2 - 1))
   # prob_tmp = 1 / (1 + exp(0.15*X1 + 0.001*X2))
   # Z = delta*I(Y <= t0) + (1 - delta*I(Y <= t0)) * rbinom(n = n, size = 1, prob = prob_tmp)
-  # prob_tmp = 0.2
+  prob_tmp = 0.2
   Z = rbinom(n = n, size = 1, prob = prob_tmp)
   
   # temporary dataframe
@@ -171,14 +171,14 @@ Bootstrap function (true survival function and estimators)
 ```{r}
 boot_ci = function(data, t) {
   nn = nrow(data)
-  R = 100
+  R = 1000
   surv_km.boot = c()
   surv_two.boot = c()
   
   for (r in 1: R) {
     boot.samp = sample(1: nn, size = nn, replace = TRUE)
     data.boot = data[boot.samp, ]
-    model.boot = coxph(Surv(Y, delta) ~ X1 + X2 + S + treat, data = data.boot, weights = ipw)
+    model.boot = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = data.boot, weights = ipw)
     surv_km.boot[r] = surv_km(t, data.boot)
     surv_two.boot[r] = surv_two(model.boot, t, data)
   }
@@ -205,8 +205,8 @@ run_on_cluster(
     sim = new_sim()
     
     sim %<>% set_levels(
-      # n = c(500, 1000, 2000, 4000),
-      n = c(500, 1000),
+      # n = c(1000, 2000, 4000, 8000),
+      n = c(1000, 2000),
       surv_time = list(
         "Exp" = list(surv_type = "Exponential", surv_params = 1.5e-2), # may be some problems
         "Gom" = list(surv_type = "Gompertz", surv_params = c(0.2138, 7e-8))
@@ -220,9 +220,12 @@ run_on_cluster(
     sim %<>% set_script(function() {
       dat_phaseOne = create_data(L$n, L$surv_time$surv_type, L$surv_time$surv_params)
       model_one = coxph(Surv(Y, delta) ~ X1 + X2 + S + treat, data = dat_phaseOne)
+      
       dat_phaseTwo = dat_phaseOne %>%
         dplyr::filter(Z == 1) # use phase two data
-      model_two = coxph(Surv(Y, delta) ~ X1 + X2 + S + treat, data = dat_phaseTwo, weights = ipw)
+      dat_two_plc = dat_phaseTwo[dat_phaseTwo$treat == 1, ]
+      model_two = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_two_plc, weights = ipw)
+      # model_two = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_phaseTwo, weights = ipw)
       
       # choose a specific time
       time_max = round(max(dat_phaseOne$Y))
@@ -233,12 +236,12 @@ run_on_cluster(
       t = which.min(abs(true - 0.75))
       
       # bootstrap to get the variance of true survival functions and estimators
-      surv_ci = boot_ci(dat_phaseTwo, t)
+      surv_ci = boot_ci(dat_two_plc, t)
       
       # get the Survival probability at the specific time point
       Q_true = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, t, dat_phaseOne)
-      Q_est_km = surv_km(t, dat_phaseTwo)
-      Q_est_two = surv_two(model_two, t, dat_phaseTwo)
+      Q_est_km = surv_km(t, dat_two_plc)
+      Q_est_two = surv_two(model_two, t, dat_two_plc)
       
       # get the true SE
       se_est_km = se_km(t, dat_phaseOne)
@@ -262,7 +265,7 @@ run_on_cluster(
         "se_two_pctg" = (surv_ci$two_se - se_est_two) / se_est_two * 100,
         ".complex" = list(
           "model" = model_two,
-          "data" = dat_phaseTwo,
+          "data" = dat_two_plc,
           "ci" = surv_ci
         )
       ))
