@@ -1,5 +1,5 @@
 ---
-title: "verify_plb"
+title: "verify_ctf"
 author: "Haotian Zheng"
 date: "2024-11-05"
 output: pdf_document
@@ -13,7 +13,7 @@ library(ggplot2)
 
 
 
-This file try to verify the bias of Survival Function in placebo group, and the coverage of it using a Bootstrap method.
+This file try to verify the bias of Survival Function in vaccine group, and the coverage of it using a Bootstrap method.
 It can be ran both locally and in a cluster.
 ```{r}
 create_data = function(n, surv_type, surv_params) {
@@ -79,7 +79,7 @@ create_data = function(n, surv_type, surv_params) {
     exposure = Z,
     family = "binomial",  # The treatment is binary
     link = "logit",
-    denominator = ~ X1 + X2 + treat,
+    denominator = ~ X1 + X2,
     data = data
   )$ipw.weights
   # ip_weights = ifelse(Z == 1, 1 / prob_tmp, NA)
@@ -138,7 +138,8 @@ surv_two = function(model, t, data) {
 
 
 
-SE of KM estimator and Two-phase sampling estimator
+SE of KM estimator and Two-phase sampling estimator 
+For phase one data only
 ```{r}
 # SE for Kaplan Meier
 se_km = function(t, data) {
@@ -157,7 +158,7 @@ se_two = function(t, data) {
   for (r in 1: R) {
     boot.samp = sample(1: nn, size = nn, replace = TRUE)
     data.boot = data[boot.samp, ]
-    model.boot = coxph(Surv(Y, delta) ~ X1 + X2 + S + treat, data = data.boot, weights = ipw)
+    model.boot = coxph(Surv(Y, delta) ~ X1 + X2 + treat, data = data.boot, weights = ipw)
     surv_two.boot[r] = surv_two(model.boot, t, data)
   }
   result = sqrt(sum((surv_two.boot - mean(surv_two.boot)) ^ 2) / (R - 1))
@@ -167,7 +168,8 @@ se_two = function(t, data) {
 
 
 
-Bootstrap function (true survival function and estimators)
+Bootstrap function (true survival function and estimators) 
+For phase two data only
 ```{r}
 boot_ci = function(data, t) {
   nn = nrow(data)
@@ -178,7 +180,7 @@ boot_ci = function(data, t) {
   for (r in 1: R) {
     boot.samp = sample(1: nn, size = nn, replace = TRUE)
     data.boot = data[boot.samp, ]
-    model.boot = coxph(Surv(Y, delta) ~ X1 + X2, data = data.boot, weights = ipw)
+    model.boot = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = data.boot, weights = ipw)
     surv_km.boot[r] = surv_km(t, data.boot)
     surv_two.boot[r] = surv_two(model.boot, t, data)
   }
@@ -206,7 +208,7 @@ run_on_cluster(
     
     sim %<>% set_levels(
       # n = c(1000, 2000, 4000, 8000),
-      n = c(2000, 4000),
+      n = c(1000, 2000),
       surv_time = list(
         "Exp" = list(surv_type = "Exponential", surv_params = 1.5e-2), # may be some problems
         "Gom" = list(surv_type = "Gompertz", surv_params = c(0.2138, 7e-8))
@@ -223,8 +225,8 @@ run_on_cluster(
       
       dat_phaseTwo = dat_phaseOne %>%
         dplyr::filter(Z == 1) # use phase two data
-      dat_two_plc = dat_phaseTwo[dat_phaseTwo$treat == 0, ] # treat = 0 in placebo group
-      model_two = coxph(Surv(Y, delta) ~ X1 + X2, data = dat_two_plc, weights = ipw) # s = 0 in placebo group
+      dat_two_plc = dat_phaseTwo[dat_phaseTwo$treat == 1, ] # treat = 1 for counterfactual estimators
+      model_two = coxph(Surv(Y, delta) ~ X1 + X2, data = dat_two_plc, weights = ipw) # s = 0 in counterfactual estimators
       
       # choose a specific time
       time_max = round(max(dat_phaseOne$Y))
