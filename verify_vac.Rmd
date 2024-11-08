@@ -208,14 +208,14 @@ run_on_cluster(
     
     sim %<>% set_levels(
       # n = c(1000, 2000, 4000, 8000),
-      n = c(1000, 2000),
+      n = c(2000, 4000),
       surv_time = list(
         "Exp" = list(surv_type = "Exponential", surv_params = 1.5e-2), # may be some problems
         "Gom" = list(surv_type = "Gompertz", surv_params = c(0.2138, 7e-8))
       )
     )
     
-    sim %<>% set_config(num_sim = 100, n_cores = 4, seed = 1018,
+    sim %<>% set_config(num_sim = 1000, n_cores = 4, seed = 1018,
                         packages = c("survival", "parallel", "truncnorm", "devtools", "ipw")
                         )
     

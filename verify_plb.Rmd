@@ -213,7 +213,7 @@ run_on_cluster(
       )
     )
     
-    sim %<>% set_config(num_sim = 100, n_cores = 4, seed = 1018,
+    sim %<>% set_config(num_sim = 1000, n_cores = 4, seed = 1018,
                         packages = c("survival", "parallel", "truncnorm", "devtools", "ipw")
                         )
     
