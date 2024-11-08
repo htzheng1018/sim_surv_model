@@ -208,14 +208,14 @@ run_on_cluster(
     
     sim %<>% set_levels(
       # n = c(1000, 2000, 4000, 8000),
-      n = c(1000, 2000),
+      n = c(2000, 4000),
       surv_time = list(
         "Exp" = list(surv_type = "Exponential", surv_params = 1.5e-2), # may be some problems
         "Gom" = list(surv_type = "Gompertz", surv_params = c(0.2138, 7e-8))
       )
     )
     
-    sim %<>% set_config(num_sim = 100, n_cores = 4, seed = 1018,
+    sim %<>% set_config(num_sim = 1000, n_cores = 4, seed = 1018,
                         packages = c("survival", "parallel", "truncnorm", "devtools", "ipw")
                         )
     
@@ -225,8 +225,8 @@ run_on_cluster(
       
       dat_phaseTwo = dat_phaseOne %>%
         dplyr::filter(Z == 1) # use phase two data
-      dat_two_plc = dat_phaseTwo[dat_phaseTwo$treat == 1, ] # treat = 1 for counterfactual estimators
-      model_two = coxph(Surv(Y, delta) ~ X1 + X2, data = dat_two_plc, weights = ipw) # s = 0 in counterfactual estimators
+      dat_two_trt = dat_phaseTwo[dat_phaseTwo$treat == 1, ] # treat = 1 for counterfactual estimators
+      model_two = coxph(Surv(Y, delta) ~ X1 + X2, data = dat_two_trt, weights = ipw) # s = 0 in counterfactual estimators
       
       # choose a specific time
       time_max = round(max(dat_phaseOne$Y))
@@ -237,12 +237,12 @@ run_on_cluster(
       t = which.min(abs(true - 0.75))
       
       # bootstrap to get the variance of true survival functions and estimators
-      surv_ci = boot_ci(dat_two_plc, t)
+      surv_ci = boot_ci(dat_two_trt, t)
       
       # get the Survival probability at the specific time point
       Q_true = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, t, dat_phaseOne)
-      Q_est_km = surv_km(t, dat_two_plc)
-      Q_est_two = surv_two(model_two, t, dat_two_plc)
+      Q_est_km = surv_km(t, dat_two_trt)
+      Q_est_two = surv_two(model_two, t, dat_two_trt)
       
       # get the true SE
       se_est_km = se_km(t, dat_phaseOne)
@@ -261,12 +261,12 @@ run_on_cluster(
         "se_two_boot" = surv_ci$two_se,
         "se_km_est" = se_est_two,
         "km_pctg" = (Q_est_km - Q_true) / Q_true * 100,
-        "two_pctg" = (Q_est_two - Q_true) / Q_true *100,
+        "two_pctg" = (Q_est_two - Q_true) / Q_true * 100,
         "se_km_pctg" = (surv_ci$km_se - se_est_km) / se_est_km * 100,
         "se_two_pctg" = (surv_ci$two_se - se_est_two) / se_est_two * 100,
         ".complex" = list(
           "model" = model_two,
-          "data" = dat_two_plc,
+          "data" = dat_two_trt,
           "ci" = surv_ci
         )
       ))

@@ -259,7 +259,7 @@ run_on_cluster(
         "se_two_boot" = surv_ci$two_se,
         "se_km_est" = se_est_two,
         "km_pctg" = (Q_est_km - Q_true) / Q_true * 100,
-        "two_pctg" = (Q_est_two - Q_true) / Q_true *100,
+        "two_pctg" = (Q_est_two - Q_true) / Q_true * 100,
         "se_km_pctg" = (surv_ci$km_se - se_est_km) / se_est_km * 100,
         "se_two_pctg" = (surv_ci$two_se - se_est_two) / se_est_two * 100,
         ".complex" = list(
