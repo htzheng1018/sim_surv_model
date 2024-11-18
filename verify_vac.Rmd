@@ -259,14 +259,14 @@ run_on_cluster(
         "two_low" = surv_ci$two_low,
         "two_up" = surv_ci$two_up,
         "se_two_boot" = surv_ci$two_se,
-        "se_km_est" = se_est_two,
+        "se_two_est" = se_est_two,
         "km_pctg" = (Q_est_km - Q_true) / Q_true * 100,
         "two_pctg" = (Q_est_two - Q_true) / Q_true * 100,
         "se_km_pctg" = (surv_ci$km_se - se_est_km) / se_est_km * 100,
         "se_two_pctg" = (surv_ci$two_se - se_est_two) / se_est_two * 100,
         ".complex" = list(
           "model" = model_two,
-          "data" = dat_two_trt,
+          "data" = dat_two_plc,
           "ci" = surv_ci
         )
       ))
@@ -287,8 +287,8 @@ run_on_cluster(
     bias_Q = sim %>% SimEngine::summarize(
       list(stat = "bias", estimate = "Q_est_km", truth = "Q_true", name = "bias_km"),
       list(stat = "bias", estimate = "Q_est_two", truth = "Q_true", name = "bias_twophase"),
-      list(stat = "coverage", lower = "km_low", upper = "km_up", truth = "Q_true", name = "cov_surv_km"),
-      list(stat = "coverage", lower = "two_low", upper = "two_up", truth = "Q_true", name = "cov_surv_twophase")
+      list(stat = "coverage", lower = "km_low", upper = "km_up", truth = "Q_true", name = "cov_km"),
+      list(stat = "coverage", lower = "two_low", upper = "two_up", truth = "Q_true", name = "cov_twophase")
     )
     # bias percentage
     bias_Q_pct = sim %>% SimEngine::summarize(
@@ -297,8 +297,8 @@ run_on_cluster(
     )
     # SE accuracy
     accuracy_se = sim %>% SimEngine::summarize(
-      list(stat = "mean", x = "se_km_boot", name = "bias_se_km"),
-      list(stat = "mean", x = "se_two_boot", name = "bias_se_two"),
+      list(stat = "mean", x = "se_km_boot", name = "se_km"),
+      list(stat = "mean", x = "se_two_boot", name = "se_two"),
       list(stat = "mean", x = "se_km_pctg", name = "se_bias_km_pct"),
       list(stat = "mean", x = "se_two_pctg", name = "se_bias_two_pct")
     )

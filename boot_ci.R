@@ -1,7 +1,7 @@
 # Bootstrap function (true survival function and estimators)
 boot_ci = function(data, t) {
   nn = nrow(data)
-  R = 100
+  R = 1000
   surv_km.boot = c()
   surv_two.boot = c()
   
