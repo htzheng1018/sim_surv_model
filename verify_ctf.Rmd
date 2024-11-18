@@ -208,14 +208,14 @@ run_on_cluster(
     
     sim %<>% set_levels(
       # n = c(1000, 2000, 4000, 8000),
-      n = c(2000, 4000),
+      n = c(1000, 2000),
       surv_time = list(
         "Exp" = list(surv_type = "Exponential", surv_params = 1.5e-2), # may be some problems
         "Gom" = list(surv_type = "Gompertz", surv_params = c(0.2138, 7e-8))
       )
     )
     
-    sim %<>% set_config(num_sim = 1000, n_cores = 4, seed = 1018,
+    sim %<>% set_config(num_sim = 100, n_cores = 4, seed = 1018,
                         packages = c("survival", "parallel", "truncnorm", "devtools", "ipw")
                         )
     
@@ -246,7 +246,7 @@ run_on_cluster(
       # get the Survival probability at the specific time point
       Q_true = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, t, dat_phaseOne)
       Q_est_km = surv_km(t, dat_two_trt)
-      Q_est_two = surv_two(model_two, t, dat_two_ctf)
+      Q_est_ctf = surv_two(model_two, t, dat_two_ctf)
       
       
       
@@ -257,7 +257,7 @@ run_on_cluster(
       return(list(
         "Q_true" = Q_true,
         "Q_est_km" = Q_est_km,
-        "Q_est_two" = Q_est_two,
+        "Q_est_ctf" = Q_est_ctf,
         "km_low" = surv_ci$km_low,
         "km_up" = surv_ci$km_up,
         "se_km_boot" = surv_ci$km_se,
@@ -267,7 +267,7 @@ run_on_cluster(
         "se_two_boot" = surv_ci$two_se,
         "se_km_est" = se_est_two,
         "km_pctg" = (Q_est_km - Q_true) / Q_true * 100,
-        "two_pctg" = (Q_est_two - Q_true) / Q_true * 100,
+        "two_pctg" = (Q_est_ctf - Q_true) / Q_true * 100,
         "se_km_pctg" = (surv_ci$km_se - se_est_km) / se_est_km * 100,
         "se_two_pctg" = (surv_ci$two_se - se_est_two) / se_est_two * 100,
         ".complex" = list(
@@ -288,11 +288,11 @@ run_on_cluster(
     # mean
     Q_true = sim %>% SimEngine::summarize(list(stat = "mean", x = "Q_true"))
     Q_est_km = sim %>% SimEngine::summarize(list(stat = "mean", x = "Q_est_km"))
-    Q_est_two = sim %>% SimEngine::summarize(list(stat = "mean", x = "Q_est_two"))
+    Q_est_ctf = sim %>% SimEngine::summarize(list(stat = "mean", x = "Q_est_ctf"))
     # bias
     bias_Q = sim %>% SimEngine::summarize(
       list(stat = "bias", estimate = "Q_est_km", truth = "Q_true", name = "bias_km"),
-      list(stat = "bias", estimate = "Q_est_two", truth = "Q_true", name = "bias_twophase"),
+      list(stat = "bias", estimate = "Q_est_ctf", truth = "Q_true", name = "bias_twophase"),
       list(stat = "coverage", lower = "km_low", upper = "km_up", truth = "Q_true", name = "cov_surv_km"),
       list(stat = "coverage", lower = "two_low", upper = "two_up", truth = "Q_true", name = "cov_surv_twophase")
     )
