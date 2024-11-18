@@ -225,8 +225,12 @@ run_on_cluster(
       
       dat_phaseTwo = dat_phaseOne %>%
         dplyr::filter(Z == 1) # use phase two data
-      dat_two_trt = dat_phaseTwo[dat_phaseTwo$treat == 1, ] # treat = 1 for counterfactual estimators
-      model_two = coxph(Surv(Y, delta) ~ X1 + X2, data = dat_two_trt, weights = ipw) # s = 0 in counterfactual estimators
+      dat_two_trt = dat_phaseTwo[dat_phaseTwo$treat == 1, ] # treat = 1 in treatment group
+      dat_two_ctf = dat_phaseTwo[dat_phaseTwo$treat == 1, ]
+      dat_two_ctf$S = 0 # treat = 1 and s = 0 for counterfactual estimators
+      model_two = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_two_trt, weights = ipw) # s = 0 in counterfactual estimators, but s should be included in the cox model
+      
+      
       
       # choose a specific time
       time_max = round(max(dat_phaseOne$Y))
@@ -242,7 +246,9 @@ run_on_cluster(
       # get the Survival probability at the specific time point
       Q_true = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, t, dat_phaseOne)
       Q_est_km = surv_km(t, dat_two_trt)
-      Q_est_two = surv_two(model_two, t, dat_two_trt)
+      Q_est_two = surv_two(model_two, t, dat_two_ctf)
+      
+      
       
       # get the true SE
       se_est_km = se_km(t, dat_phaseOne)

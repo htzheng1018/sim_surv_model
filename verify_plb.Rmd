@@ -224,7 +224,7 @@ run_on_cluster(
       dat_phaseTwo = dat_phaseOne %>%
         dplyr::filter(Z == 1) # use phase two data
       dat_two_plc = dat_phaseTwo[dat_phaseTwo$treat == 0, ] # treat = 0 in placebo group
-      model_two = coxph(Surv(Y, delta) ~ X1 + X2, data = dat_two_plc, weights = ipw) # s = 0 in placebo group
+      model_two = coxph(Surv(Y, delta) ~ X1 + X2, data = dat_two_plc, weights = ipw) # no s in placebo group
       
       # choose a specific time
       time_max = round(max(dat_phaseOne$Y))
