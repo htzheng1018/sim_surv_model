@@ -50,7 +50,7 @@ create_data = function(n, surv_type, surv_params) {
   # prob_tmp = 1 / (1 + exp(0.15*X1 + 0.001*X2 - 1))
   # prob_tmp = 1 / (1 + exp(0.15*X1 + 0.001*X2))
   # Z = delta*I(Y <= t0) + (1 - delta*I(Y <= t0)) * rbinom(n = n, size = 1, prob = prob_tmp)
-  prob_tmp = 0.2
+  prob_tmp = 0.4
   Z = rbinom(n = n, size = 1, prob = prob_tmp)
   
   # temporary dataframe
