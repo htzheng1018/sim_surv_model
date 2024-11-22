@@ -20,6 +20,6 @@ surv_two = function(model, t, data) {
   bh_1 = basehaz(model, centered = F)
   index = which.min(abs(bh_1$time - t))
   
-  Q_0 = bh_1$hazard[index]
-  return(exp(-Q_0))
+  H_0 = bh_1$hazard[index]
+  return(exp(-H_0))
 }
