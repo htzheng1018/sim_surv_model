@@ -12,7 +12,7 @@ surv_two = function(model, t, data, type) {
   #   beta = c(0.15, 0.001, -5)
   # }
   X_S = data[, c(names(model$coefficients))]
-  unprop = exp(beta %*% t(X_S))
+  unprop = exp(beta %*% t(X_S)) 
 
   result = exp(- H_0 * unprop)
   return(mean(result))

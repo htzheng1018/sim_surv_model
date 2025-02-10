@@ -47,7 +47,7 @@ run_on_cluster(
     sim %<>% set_config(num_sim = 1000, n_cores = 4, seed = 1018,
                         packages = c("survival", "parallel", "truncnorm", "devtools", "ipw")
     )
-    
+     
     sim %<>% set_script(function() {
       dat_phaseOne = create_data(L$n, L$surv_time$surv_type, L$surv_time$surv_params)
       # model_one = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_phaseOne)
