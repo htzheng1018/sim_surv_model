@@ -13,7 +13,7 @@ surv_true_plc = function(surv_type, surv_params, t, data) {
   return(mean(result))
   # return(mean(Q_0))
   # return(mean(exp(unprop)))
-  # return(0.001) 
+  # return(0.001)
 }
 
 # true survival function (vaccine)
