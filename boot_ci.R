@@ -1,17 +1,28 @@
 # Bootstrap function (true survival function and estimators)
-boot_ci = function(data, t) {
+boot_ci = function(data, t, trt_type) {
   nn = nrow(data)
-  R = 1000
+  R = 100
   surv_km.boot = c()
   surv_two.boot = c()
   
-  for (r in 1: R) {
-    boot.samp = sample(1: nn, size = nn, replace = TRUE)
-    data.boot = data[boot.samp, ]
-    model.boot = coxph(Surv(Y, delta) ~ X1 + X2, data = data.boot, weights = ipw)
-    surv_km.boot[r] = surv_km(t, data.boot)
-    surv_two.boot[r] = surv_two(model.boot, t, data)
+  if (trt_type == "plc") {
+    for (r in 1: R) {
+      boot.samp = sample(1: nn, size = nn, replace = TRUE)
+      data.boot = data[boot.samp, ]
+      model.boot = coxph(Surv(Y, delta) ~ X1 + X2, data = data.boot, weights = ipw)
+      surv_km.boot[r] = surv_km(t, data.boot)
+      surv_two.boot[r] = surv_two(model.boot, t, data)
+    }
+  } else if (trt_type == "vac") {
+    for (r in 1: R) {
+      boot.samp = sample(1: nn, size = nn, replace = TRUE)
+      data.boot = data[boot.samp, ]
+      model.boot = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = data.boot, weights = ipw)
+      surv_km.boot[r] = surv_km(t, data.boot)
+      surv_two.boot[r] = surv_two(model.boot, t, data)
+    }
   }
+
   ci_km = quantile(surv_km.boot, prob = c(0.025, 0.975))
   ci_two = quantile(surv_two.boot, prob = c(0.025, 0.975))
   km_se = sqrt(sum((surv_km.boot - mean(surv_km.boot)) ^ 2) / (R - 1))
