@@ -2,7 +2,7 @@
 surv_two = function(model, t, data, type) {
   bh_1 = basehaz(model, centered = F)
   index = which.min(abs(bh_1$time - t))
-
+  
   H_0 = bh_1$hazard[index]
   
   beta = model$coefficients

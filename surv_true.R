@@ -33,18 +33,3 @@ surv_true_vac = function(surv_type, surv_params, t, data) {
   # return(mean(exp(unprop)))
   # return(0.001)
 }
-
-
-
-
-surv_0 = function(surv_type, surv_params, t, data) {
-  if (surv_type == "Exponential") {
-    lambda = surv_params
-    Q_0 = exp(- lambda * t)
-  } else if ( surv_type == "Gompertz") {
-    alpha = surv_params[1]
-    lambda = surv_params[2]
-    Q_0 = exp(lambda/alpha * (1 - exp(alpha*t)))
-  }
-  return(Q_0)
-}
