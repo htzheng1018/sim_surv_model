@@ -4,7 +4,7 @@ surv_two = function(model, t, data, type) {
   index = which.min(abs(bh_1$time - t))
 
   H_0 = bh_1$hazard[index]
-
+  
   beta = model$coefficients
   # if (type == "plc") {
   #   beta = c(0.15, 0.001)
