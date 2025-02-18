@@ -36,7 +36,7 @@ run_on_cluster(
     sim = new_sim()
     
     sim %<>% set_levels(
-      # n = c(1000, 2000, 4000, 8000),
+      # n = 1000,
       n = c(500, 1000, 2000, 4000, 8000),
       surv_time = list(
         "Exp" = list(surv_type = "Exponential", surv_params = 1.5e-3), # may be some problems
@@ -64,7 +64,7 @@ run_on_cluster(
       # for (i in 1: time_max) {
       #   true[i] = surv_true_plc(L$surv_time$surv_type, L$surv_time$surv_params, i, dat_phaseOne)
       # }
-      # t = which.min(abs(true - 0.5))
+      # t = which.min(abs(true - 0.25))
       # print(t)
       if (L$surv_time$surv_type == "Exponential") {
         t = 10
@@ -123,8 +123,10 @@ run_on_cluster(
     
     # mean
     Q_true_plc = sim %>% SimEngine::summarize(list(stat = "mean", x = "Q_true_plc"))
+    Q_true_vac = sim %>% SimEngine::summarize(list(stat = "mean", x = "Q_true_vac"))
     # Q_est_km = sim %>% SimEngine::summarize(list(stat = "mean", x = "Q_est_km"))
     Q_est_two_plc = sim %>% SimEngine::summarize(list(stat = "mean", x = "Q_est_two_plc"))
+    Q_est_two_vac = sim %>% SimEngine::summarize(list(stat = "mean", x = "Q_est_two_vac"))
     # bias
     bias_Q = sim %>% SimEngine::summarize(
       # list(stat = "bias", estimate = "Q_est_km", truth = "Q_true", name = "bias_km"),

@@ -6,7 +6,7 @@ surv_true_plc = function(surv_type, surv_params, t, data) {
   } else if ( surv_type == "Gompertz") {
     alpha = surv_params[1]
     lambda = surv_params[2]
-    Q_0 = exp(lambda/alpha * (1 - exp(alpha*t)))
+    Q_0 = exp((lambda/alpha) * (1 - exp(alpha*t)))
   }
   unprop = 0.15 * data$X1 + 0.001 * data$X2 # no s in placebo group
   result = Q_0 ^ (exp(unprop))

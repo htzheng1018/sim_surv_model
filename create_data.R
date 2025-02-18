@@ -25,7 +25,8 @@ create_data = function(n, surv_type, surv_params) {
   } else if (surv_type == "Gompertz") {
     alpha = surv_params[1]
     lambda = surv_params[2]
-    t = 1/alpha * log(1 - (alpha * log(U)) / (lambda * exp(0.15*X1 + 0.001*X2 - 5*S + treat)))
+    # t = 1/alpha * log(1 - (alpha * log(U)) / (lambda * exp(0.15*X1 + 0.001*X2 - 5*S + treat)))
+    t = 1/alpha * log(1 - (alpha * log(U)) / (lambda * exp(0.15*X1 + 0.001*X2 - 5*S)))
   }
   
   # censore time

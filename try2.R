@@ -59,18 +59,18 @@ run_on_cluster(
       # model_two_vac = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_phaseTwo_vac) # no s in placebo group
       
       # choose a specific time
-      time_max = round(max(dat_phaseOne$Y))
-      true = c()
-      for (i in 1: time_max) {
-        true[i] = surv_true_plc(L$surv_time$surv_type, L$surv_time$surv_params, i, dat_phaseOne)
-      }
-      t = which.min(abs(true - 0.5))
-      print(t)
-      # if (L$surv_time$surv_type == "Exponential") {
-      #   t = 10
-      # } else if (L$surv_time$surv_type == "Gompertz") {
-      #   t = 50
+      # time_max = round(max(dat_phaseOne$Y))
+      # true = c()
+      # for (i in 1: time_max) {
+      #   true[i] = surv_true_plc(L$surv_time$surv_type, L$surv_time$surv_params, i, dat_phaseOne)
       # }
+      # t = which.min(abs(true - 0.5))
+      # print(t)
+      if (L$surv_time$surv_type == "Exponential") {
+        t = 10
+      } else if (L$surv_time$surv_type == "Gompertz") {
+        t = 50
+      }
       
       # # bootstrap to get the variance of true survival functions and estimators
       # surv_ci = boot_ci(dat_two_plc, t)
