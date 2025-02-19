@@ -80,9 +80,9 @@ run_on_cluster(
       # surv_ci_vac = boot_ci(dat_phaseTwo_vac, t, "vac") # variance in vaccine group
       
       # get the Survival probability at the specific time point
-      Q_true_plc = surv_true_plc(L$surv_time$surv_type, L$surv_time$surv_params, t, dat_phaseOne)
-      # Q_true_vac = surv_true_vac(L$surv_time$surv_type, L$surv_time$surv_params, t, dat_phaseOne_vac)
-      Q_true_vac = surv_true_vac(L$surv_time$surv_type, L$surv_time$surv_params, t, dat_phaseTwo_vac)
+      Q_true_plc = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, t, dat_phaseOne, "plc")
+      # Q_true_vac = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, t, dat_phaseOne_vac, "vac)
+      Q_true_vac = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, t, dat_phaseTwo_vac, "vac")
       Q_est_km_plc = surv_km(t, dat_phaseOne_plc) # km estimator for placebo group
       Q_est_km_vac = surv_km(t, dat_phaseOne_vac) # km estimator for vaccine group
       Q_est_two_plc = surv_two(model_two_plc, t, dat_phaseOne_plc)

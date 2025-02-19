@@ -182,3 +182,4 @@ ggplot(result, aes(x = time)) +
   theme(legend.position = c(0.9, 0.9)) +
   ggtitle("Survival Curves")
 
+
