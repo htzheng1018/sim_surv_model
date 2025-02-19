@@ -37,8 +37,8 @@ run_on_cluster(
     sim = new_sim()
     
     sim %<>% set_levels(
-      # n = 500,
-      n = c(500, 1000, 2000),
+      n = c(500, 1000),
+      # n = c(500, 1000, 2000, 4000, 8000),
       surv_time = list(
         "Exp" = list(surv_type = "Exponential", surv_params = 1.5e-3), # may be some problems
         "Gom" = list(surv_type = "Gompertz", surv_params = c(0.2138, 7e-8))
@@ -50,15 +50,15 @@ run_on_cluster(
     )
     
     sim %<>% set_script(function() {
-      dat_phaseOne = create_data(L$n, L$surv_time$surv_type, L$surv_time$surv_params) # phase one data (original)
+      dat_phaseOne = create_data(L$n, L$surv_time$surv_type, L$surv_time$surv_params, "iid") # phase one data (original)
       dat_phaseTwo_vac = dat_phaseOne %>%
         dplyr::filter(Z == 1 & treat==1) # vaccine group in phase two data
       dat_phaseOne_plc = dat_phaseOne[dat_phaseOne$treat == 0, ] # placebo group in phase one data
-      dat_phaseOne_vac = dat_phaseOne[dat_phaseOne$treat == 1, ] # vaccine group in phase one data
+      # dat_phaseOne_vac = dat_phaseOne[dat_phaseOne$treat == 1, ] # vaccine group in phase one data
       model_two_plc = coxph(Surv(Y, delta) ~ X1 + X2, data = dat_phaseOne_plc) # no s in placebo model
       model_two_vac = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_phaseTwo_vac) # have s in vaccine model
       
-      # choose a specific time
+      # choose a median survival time
       # time_max = round(max(dat_phaseOne$Y))
       # true = c()
       # for (i in 0: time_max) {
@@ -68,7 +68,7 @@ run_on_cluster(
       # print(t)
       
       if (L$surv_time$surv_type == "Exponential") {
-        t = 9
+        t = 10
       } else if (L$surv_time$surv_type == "Gompertz") {
         t = 50
       }
@@ -81,8 +81,8 @@ run_on_cluster(
       
       # get the Survival probability at the specific time point
       Q_true_plc = surv_true_plc(L$surv_time$surv_type, L$surv_time$surv_params, t, dat_phaseOne)
-      # Q_true_vac = surv_true_vac(L$surv_time$surv_type, L$surv_time$surv_params, t, dat_phaseTwo_vac)
-      Q_true_vac = surv_true_vac(L$surv_time$surv_type, L$surv_time$surv_params, t, dat_phaseOne_vac)
+      # Q_true_vac = surv_true_vac(L$surv_time$surv_type, L$surv_time$surv_params, t, dat_phaseOne_vac)
+      Q_true_vac = surv_true_vac(L$surv_time$surv_type, L$surv_time$surv_params, t, dat_phaseTwo_vac)
       Q_est_km_plc = surv_km(t, dat_phaseOne_plc) # km estimator for placebo group
       Q_est_km_vac = surv_km(t, dat_phaseOne_vac) # km estimator for vaccine group
       Q_est_two_plc = surv_two(model_two_plc, t, dat_phaseOne_plc)

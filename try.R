@@ -36,8 +36,8 @@ run_on_cluster(
     sim = new_sim()
     
     sim %<>% set_levels(
-      # n = 1000,
-      n = c(500, 1000, 2000, 4000, 8000),
+      n = 1000,
+      # n = c(500, 1000, 2000, 4000, 8000),
       surv_time = list(
         "Exp" = list(surv_type = "Exponential", surv_params = 1.5e-3), # may be some problems
         "Gom" = list(surv_type = "Gompertz", surv_params = c(0.2138, 7e-8))
@@ -49,14 +49,15 @@ run_on_cluster(
     )
     
     sim %<>% set_script(function() {
-      dat_phaseOne = create_data(L$n, L$surv_time$surv_type, L$surv_time$surv_params)
+      dat_phaseOne = create_data(L$n, L$surv_time$surv_type, L$surv_time$surv_params, "complex")
       # model_one = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_phaseOne)
       
       dat_phaseTwo_vac = dat_phaseOne %>%
         dplyr::filter(Z == 1 & treat==1) # use phase two data
       dat_phaseOne_plc = dat_phaseOne[dat_phaseOne$treat == 0, ] # treat = 0 in placebo group
+      dat_phaseOne_vac = dat_phaseOne[dat_phaseOne$treat == 1, ] # treat = 1 in vaccine group
       model_two_plc = coxph(Surv(Y, delta) ~ X1 + X2, data = dat_phaseOne_plc) # no s in placebo group
-      model_two_vac = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_phaseTwo_vac) # s in vaccine group
+      model_two_vac = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_phaseTwo_vac, weights = ipw) # s in vaccine group
       
       # choose a specific time
       # time_max = round(max(dat_phaseOne$Y))
@@ -77,7 +78,8 @@ run_on_cluster(
       
       # get the Survival probability at the specific time point
       Q_true_plc = surv_true_plc(L$surv_time$surv_type, L$surv_time$surv_params, t, dat_phaseOne)
-      Q_true_vac = surv_true_vac(L$surv_time$surv_type, L$surv_time$surv_params, t, dat_phaseTwo_vac)
+      # Q_true_vac = surv_true_vac(L$surv_time$surv_type, L$surv_time$surv_params, t, dat_phaseTwo_vac)
+      Q_true_vac = surv_true_vac(L$surv_time$surv_type, L$surv_time$surv_params, t, dat_phaseOne_vac)
       Q_est_km = surv_km(t, dat_phaseOne_plc)
       Q_est_two_plc = surv_two(model_two_plc, t, dat_phaseOne_plc, "plc")
       Q_est_two_vac = surv_two(model_two_vac, t, dat_phaseTwo_vac, "vac")

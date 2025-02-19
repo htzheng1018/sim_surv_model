@@ -1,4 +1,4 @@
-create_data = function(n, surv_type, surv_params) {
+create_data = function(n, surv_type, surv_params, sample_type) {
   # id
   id = seq(1, n)
   
@@ -47,31 +47,34 @@ create_data = function(n, surv_type, surv_params) {
   Y = pmin(t, C)
   
   # two-phase indicator
-  # t0 = 20 # set the time of interest
-  # prob_tmp = 1 / (1 + exp(0.15*X1 + 0.001*X2 - 1))
-  # prob_tmp = 1 / (1 + exp(0.15*X1 + 0.001*X2))
-  # Z = delta*I(Y <= t0) + (1 - delta*I(Y <= t0)) * rbinom(n = n, size = 1, prob = prob_tmp)
-  prob_tmp = 1
-  Z = treat * rbinom(n = n, size = 1, prob = prob_tmp)
+  if (sample_type == "iid") {
+    prob_tmp = 0.3
+    Z = treat * rbinom(n = n, size = 1, prob = prob_tmp)
+  } else if (sample_type == "complex") {
+    t0 = 50 # set the time of interest
+    prob_tmp = delta*I(Y <= t0) + (1 - delta*I(Y <= t0)) * (1 / (1 + exp(-0.15*X1 - 0.001*X2 + 3)))
+    Z = treat * rbinom(n = n, size = 1, prob = prob_tmp)
+  }
   
   # temporary dataframe
   data = data.frame("id" = id, "treat" = treat, "Y" = Y, "delta" = delta, "S" = S, "X1" = X1, "X2" = X2, "Z" = Z)
   
   # using ipwpoint function to generate inverse probability weights
-  # ip_weights = ipwpoint(
-  #   exposure = Z,
-  #   family = "binomial",  # The treatment is binary
-  #   link = "logit",
-  #   denominator = ~ X1 + X2,
-  #   data = data
-  # )$ipw.weights
-  # ip_weights = ifelse(Z == 1, 1 / prob_tmp, NA)
-  # ip_weights = ip_weights / sum(ip_weights, na.rm = TRUE) * length(ip_weights) # normalize
-  ip_weights = 1 # !!!!!
+  if (sample_type == "iid") {
+    ipw = ifelse(Z == 1, 1 / prob_tmp, NA)
+  } else if (sample_type == "complex") {
+    ipw = ipwpoint(
+      exposure = Z,
+      family = "binomial",  # The treatment is binary
+      link = "logit",
+      denominator = ~ X1 + X2 + treat,
+      data = data
+    )$ipw.weights
+  }
   
   # final data
   data = data %>% 
-    dplyr::mutate(ipw = ip_weights)
+    dplyr::mutate(ipw = ipw)
   
   return(data)
 }
