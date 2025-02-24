@@ -179,6 +179,7 @@ run_on_cluster(
       list(stat = "bias", estimate = "Q_est_two_plc", truth = "Q_true_plc", name = "bias_twophase_plc"),
       list(stat = "bias", estimate = "Q_est_two_vac", truth = "Q_true_vac", name = "bias_twophase_vac")
     )
+    
     # bias percentage
     bias_Q_pct_km = sim %>% SimEngine::summarize(
       list(stat = "mean", x = "km_pctg_plc", name = "bias_km_pct_plc"),
