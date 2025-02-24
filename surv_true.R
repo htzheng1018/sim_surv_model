@@ -10,9 +10,9 @@ surv_true = function(surv_type, surv_params, t, data, type) {
   }
   
   if (type == "plc") {
-    unprop = 0.15 * data$X1 + 0.001 * data$X2 # no s in placebo group
+    unprop = 0.5 * data$X1 + 0.7 * data$X2 # no s in placebo group
   } else if (type == "vac") {
-    unprop = 0.15 * data$X1 + 0.001 * data$X2 - 5 * data$S # have s in vaccine group
+    unprop = 0.5 * data$X1 + 0.7 * data$X2 - 2 * data$S # have s in vaccine group
   }
   result = Q_0 ^ (exp(unprop))
   return(mean(result))

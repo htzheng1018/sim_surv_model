@@ -18,5 +18,4 @@ surv_two = function(model, t, data, type) {
   return(mean(result))
   # return(mean(exp(- H_0)))
   # return(mean(unprop))
-  # return(mean(beta[2]))
 }

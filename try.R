@@ -38,9 +38,13 @@ run_on_cluster(
     sim %<>% set_levels(
       # n = 1000,
       n = c(500, 1000, 2000, 4000, 8000),
+      # surv_time = list(
+      #   "Exp" = list(surv_type = "Exponential", surv_params = 1.5e-3), # may be some problems
+      #   "Gom" = list(surv_type = "Gompertz", surv_params = c(0.2138, 7e-8))
+      # )
       surv_time = list(
-        "Exp" = list(surv_type = "Exponential", surv_params = 1.5e-3), # may be some problems
-        "Gom" = list(surv_type = "Gompertz", surv_params = c(0.2138, 7e-8))
+        "Exp" = list(surv_type = "Exponential", surv_params = 2e-2),
+        "Gom" = list(surv_type = "Gompertz", surv_params = c(0.1, 1e-3))
       )
     )
     
@@ -60,28 +64,36 @@ run_on_cluster(
       
       # choose a specific time
       # time_max = round(max(dat_phaseOne$Y))
-      # true = c()
+      # true_plc = c()
+      # true_vac = c()
       # for (i in 1: time_max) {
-      #   true[i] = surv_true_plc(L$surv_time$surv_type, L$surv_time$surv_params, i, dat_phaseOne)
+      #   true_plc[i] = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, i, dat_phaseOne, "plc")
+      #   true_vac[i] = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, i, dat_phaseOne_vac, "vac")
       # }
-      # t = which.min(abs(true - 0.25))
-      # print(t)
+      # t_plc = which.min(abs(true_plc - 0.5))
+      # print("placebo:")
+      # print(t_plc)
+      # t_vac = which.min(abs(true_vac - 0.5))
+      # print("vaccine:")
+      # print(t_vac)
       if (L$surv_time$surv_type == "Exponential") {
-        t = 10
+        t_plc = 20
+        t_vac = 40
       } else if (L$surv_time$surv_type == "Gompertz") {
-        t = 50
+        t_plc = 37
+        t_vac = 44
       }
       
       # # bootstrap to get the variance of true survival functions and estimators
       # surv_ci = boot_ci(dat_two_plc, t)
       
       # get the Survival probability at the specific time point
-      Q_true_plc = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, t, dat_phaseOne, "plc")
+      Q_true_plc = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, t_plc, dat_phaseOne, "plc")
       # Q_true_vac = surv_true_vac(L$surv_time$surv_type, L$surv_time$surv_params, t, dat_phaseTwo_vac)
-      Q_true_vac = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, t, dat_phaseOne_vac, "vac")
-      Q_est_km = surv_km(t, dat_phaseOne_plc)
-      Q_est_two_plc = surv_two(model_two_plc, t, dat_phaseOne_plc, "plc")
-      Q_est_two_vac = surv_two(model_two_vac, t, dat_phaseTwo_vac, "vac")
+      Q_true_vac = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, t_vac, dat_phaseOne_vac, "vac")
+      Q_est_km = surv_km(t_plc, dat_phaseOne_plc)
+      Q_est_two_plc = surv_two(model_two_plc, t_plc, dat_phaseOne_plc, "plc")
+      Q_est_two_vac = surv_two(model_two_vac, t_vac, dat_phaseTwo_vac, "vac")
       
       # get the true SE
       # se_est_km = se_km(t, dat_phaseOne)

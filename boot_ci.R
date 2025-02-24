@@ -9,7 +9,7 @@ boot_ci = function(data, t, trt_type) {
     for (r in 1: R) {
       boot.samp = sample(1: nn, size = nn, replace = TRUE)
       data.boot = data[boot.samp, ]
-      model.boot = coxph(Surv(Y, delta) ~ X1 + X2, data = data.boot, weights = ipw)
+      model.boot = coxph(Surv(Y, delta) ~ X1 + X2, data = data.boot)
       surv_km.boot[r] = surv_km(t, data.boot)
       surv_two.boot[r] = surv_two(model.boot, t, data)
     }

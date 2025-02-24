@@ -37,11 +37,13 @@ surv_time = list(
   "Gom" = list(surv_type = "Gompertz", surv_params = c(0.2138, 7e-8))
 )
 
-surv_time = list(surv_type = "Gompertz", surv_params = c(0.2138, 7e-8))
+surv_time = list(surv_type = "Gompertz", surv_params = c(0.1, 1e-3))
+# surv_time = list(surv_type = "Exponential", surv_params = 2e-2)
 
 
 
 dat_phaseOne = create_data(n, surv_time$surv_type, surv_time$surv_params, "iid")
+print(max(dat_phaseOne$Y))
 dat_phaseTwo_vac = dat_phaseOne %>%
   dplyr::filter(Z == 1 & treat==1) # use phase two data
 dat_phaseOne_plc = dat_phaseOne[dat_phaseOne$treat == 0, ] # treat = 0 in placebo group
@@ -67,8 +69,8 @@ result = data.frame(time = (1: time_max), true_plc = true_plc, true_vac= true_va
 
 
 
-surv_true(surv_time$surv_type, surv_time$surv_params, 50, dat_phaseOne_vac, "vac")
-surv_two(model_two_plc, 50, dat_phaseTwo_vac, "vac")
+surv_true(surv_time$surv_type, surv_time$surv_params, 44, dat_phaseOne_vac, "vac")
+surv_two(model_two_vac, 44, dat_phaseTwo_vac, "vac")
 
 
 # plot the survival function in placebo group
