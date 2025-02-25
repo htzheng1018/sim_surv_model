@@ -55,7 +55,7 @@ create_data = function(n, surv_type, surv_params, sample_type) {
     prob_tmp = 0.3
     Z = treat * rbinom(n = n, size = 1, prob = prob_tmp)
   } else if (sample_type == "complex") {
-    t0 = 50 # set the time of interest
+    t0 = 80 # set the time of interest
     prob_tmp = delta*I(Y <= t0) + (1 - delta*I(Y <= t0)) * (1 / (1 + exp(-0.5*X1 - 0.7*X2 + 3)))
     Z = treat * rbinom(n = n, size = 1, prob = prob_tmp)
   }
@@ -68,13 +68,14 @@ create_data = function(n, surv_type, surv_params, sample_type) {
   if (sample_type == "iid") {
     ipw = ifelse(Z == 1, 1 / prob_tmp, NA)
   } else if (sample_type == "complex") {
-    ipw = ipwpoint(
-      exposure = Z,
-      family = "binomial",  # The treatment is binary
-      link = "logit",
-      denominator = ~ X1 + X2 + treat,
-      data = data
-    )$ipw.weights
+    # ipw = ipwpoint(
+    #   exposure = Z,
+    #   family = "binomial",  # The treatment is binary
+    #   link = "logit",
+    #   denominator = ~ X1 + X2 + treat,
+    #   data = data
+    # )$ipw.weights
+    ipw = ifelse(Z == 1, 1 / prob_tmp, NA)
   }
   
   # final data
