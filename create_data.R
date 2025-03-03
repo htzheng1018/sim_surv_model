@@ -15,7 +15,7 @@ create_data = function(n, surv_type, surv_params, sample_type) {
   
   # biomarker
   S = rtruncnorm(n = n, a = 0, b = 1, mean = 0.5, sd = 0.2) # truncated normal in (0, 1)
-  prob_tmp = 1 / (1 + exp(- 0.5*X1 + 0.7*X2 + treat)) # to make edge_prob distributed not too extremely
+  prob_tmp = 1 / (1 + exp(0.5*X1 + 0.7*X2 + treat)) # to make edge_prob distributed not too extremely
   val_tmp = rbinom(n, prob = prob_tmp, size = 1)
   S = treat * ((1 - val_tmp) * S)
   
@@ -56,7 +56,7 @@ create_data = function(n, surv_type, surv_params, sample_type) {
     Z = treat * rbinom(n = n, size = 1, prob = prob_tmp)
   } else if (sample_type == "complex") {
     t0 = 80 # set the time of interest
-    prob_tmp = delta*I(Y <= t0) + (1 - delta*I(Y <= t0)) * (1 / (1 + exp(-0.5*X1 - 0.7*X2 + 3)))
+    prob_tmp = delta*I(Y <= t0) + (1 - delta*I(Y <= t0)) * (1 / (1 + exp(- 0.5*X1 - 0.7*X2 + 3)))
     Z = treat * rbinom(n = n, size = 1, prob = prob_tmp)
   }
   
