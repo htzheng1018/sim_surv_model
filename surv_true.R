@@ -26,7 +26,7 @@ surv_true = function(surv_type, surv_params, t, data, type, integral) {
       result = (5/7)*(result1 + result2)
     } else if (type == "vac") {
       unprop = function(X1, X2, S) {
-        return(0.5 * X1 + 0.7 * X2 - 2 * S)
+        return(0.5*X1 + 0.7*X2 - 2*S)
       }
       survival_function = function(Q_0, unprop) {
         return(Q_0 ^ exp(unprop))
@@ -36,7 +36,7 @@ surv_true = function(surv_type, surv_params, t, data, type, integral) {
         prob_tmp = 1 / (1 + exp(0.5*X1 + 0.7*X2 + treat))
         result = ifelse(treat == 0, ifelse(S == 0, ifelse(S == 0, Inf, 0), 0), # treat = 0: S = 0 with probability 1
                         ifelse(S == 0, # treat = 1: S = 0 with probability prob_tmp, otherwise truncated normal
-                               prob_tmp*ifelse(S == 0, Inf, 0) + (1 - prob_tmp)*dtruncnorm(0, a = 0, b = 1, mean = 0.5, sd = 0.2),
+                               prob_tmp*ifelse(S == 0, Inf, 0) + (1 - prob_tmp) * dtruncnorm(0, a = 0, b = 1, mean = 0.5, sd = 0.2),
                                (1 - prob_tmp) * dtruncnorm(S, a = 0, b = 1, mean = 0.5, sd = 0.2)))
         return(result)
       }
