@@ -49,11 +49,11 @@ run_on_cluster(
     )
     
     sim %<>% set_config(num_sim = 1000, n_cores = 4, seed = 1018,
-                        packages = c("survival", "parallel", "truncnorm", "devtools", "ipw")
+                        packages = c("survival", "parallel", "truncnorm", "devtools", "ipw", "pracma")
     )
     
     sim %<>% set_script(function() {
-      dat_phaseOne = create_data(L$n, L$surv_time$surv_type, L$surv_time$surv_params, "complex")
+      dat_phaseOne = create_data(L$n, L$surv_time$surv_type, L$surv_time$surv_params, "iid")
       
       dat_phaseTwo_vac = dat_phaseOne %>%
         dplyr::filter(Z == 1 & treat==1) # use phase two data
@@ -88,9 +88,8 @@ run_on_cluster(
       # surv_ci = boot_ci(dat_two_plc, t)
       
       # get the Survival probability at the specific time point
-      Q_true_plc = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, t_plc, dat_phaseOne, "plc")
-      # Q_true_vac = surv_true_vac(L$surv_time$surv_type, L$surv_time$surv_params, t, dat_phaseTwo_vac, "vac")
-      Q_true_vac = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, t_vac, dat_phaseOne_vac, "vac")
+      Q_true_plc = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, t_plc, dat_phaseOne, "plc", "math")
+      Q_true_vac = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, t_vac, dat_phaseOne_vac, "vac", "math")
       Q_est_km = surv_km(t_plc, dat_phaseOne_plc)
       Q_est_two_plc = surv_two(model_two_plc, t_plc, dat_phaseOne_plc, "plc")
       Q_est_two_vac = surv_two(model_two_vac, t_vac, dat_phaseTwo_vac, "vac")
