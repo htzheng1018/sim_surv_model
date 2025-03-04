@@ -56,7 +56,7 @@ result110 = integral2(function(X2, S) integrand11(X1 = 0, X2, S), xmin = 0, xmax
 result111 = integral2(function(X2, S) integrand11(X1 = 1, X2, S), xmin = 0, xmax = 1, ymin = 0, ymax = 1)$Q
 
 # expectation
-result = 0.5*(0.3*result000 + 0.7*(result100 + result110)) + 0.5*(0.3*result001 + 0.7*(result101 + result111))
+result = 0.5*(result100 + result110) + 0.5*(result101 + result111)
 
 
 

@@ -48,7 +48,7 @@ create_data = function(n, surv_type, surv_params, sample_type) {
   
   # two-phase indicator
   if (sample_type == "iid") {
-    prob_tmp = 0.3
+    prob_tmp = 0.4
     Z = treat * rbinom(n = n, size = 1, prob = prob_tmp)
   } else if (sample_type == "complex") {
     t0 = 80 # set the time of interest
