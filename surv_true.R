@@ -25,33 +25,47 @@ surv_true = function(surv_type, surv_params, t, data, type, integral) {
       result2 = integrate(integrand, lower = 0.5, upper = 1.2)$value
       result = (5/7)*(result1 + result2)
     } else if (type == "vac") {
-      unprop = function(X1, X2, S) {
-        return(0.5*X1 + 0.7*X2 - 2*S)
-      }
-      survival_function = function(Q_0, unprop) {
-        return(Q_0 ^ exp(unprop))
-      }
       # P(S | X1, X2, treat)
       prob_S_cond = function(S, X1, X2, treat) {
         prob_tmp = 1 / (1 + exp(0.5*X1 + 0.7*X2 + treat))
-        result = ifelse(treat == 0, ifelse(S == 0, ifelse(S == 0, Inf, 0), 0), # treat = 0: S = 0 with probability 1
+        result = ifelse(treat == 0, ifelse(S == 0, 1, 0), # treat = 0: S = 0 with probability 1
                         ifelse(S == 0, # treat = 1: S = 0 with probability prob_tmp, otherwise truncated normal
-                               prob_tmp*ifelse(S == 0, Inf, 0) + (1 - prob_tmp) * dtruncnorm(0, a = 0, b = 1, mean = 0.5, sd = 0.2),
+                               prob_tmp * ifelse(S == 0, 1, 0),
                                (1 - prob_tmp) * dtruncnorm(S, a = 0, b = 1, mean = 0.5, sd = 0.2)))
         return(result)
       }
       # define the integrand
-      integrand = function(X1, X2, S, treat) {
+      # treat = 0, S = 0
+      integrand00 = function(X1, X2) {
+        unprop = 0.5*X1 + 0.7*X2
+        Q = Q_0 ^ exp(unprop)
+        result = Q
+        return(result)
+      }
+      result000 = integrate(function(X2) integrand00(X1 = 0, X2), lower = 0, upper = 1)$value # X1 = 0
+      result001 = integrate(function(X2) integrand00(X1 = 1, X2), lower = 0, upper = 1)$value # X1 = 1
+      # treat = 1, S = 0
+      integrand10 = function(X1, X2) {
+        unprop = 0.5*X1 + 0.7*X2
+        Q = Q_0 ^ exp(unprop)
+        prob_tmp = 1 / (1 + exp(0.5*X1 + 0.7*X2 + 1))
+        result = Q * prob_tmp
+        return(result)
+      }
+      result100 = integrate(function(X2) integrand10(X1 = 0, X2), lower = 0, upper = 1)$value
+      result101 = integrate(function(X2) integrand10(X1 = 1, X2), lower = 0, upper = 1)$value
+      # treat = 1, S > 0
+      integrand11 = function(X1, X2, S) {
         unprop = 0.5*X1 + 0.7*X2 - 2*S
         Q = Q_0 ^ exp(unprop)
-        return(Q * prob_S_cond(S, X1, X2, treat))
+        prob_tmp = 1 / (1 + exp(0.5*X1 + 0.7*X2 + 1))
+        result = Q * (1 - prob_tmp) * dtruncnorm(S, a = 0, b = 1, mean = 0.5, sd = 0.2)
+        return(result)
       }
+      result110 = integral2(function(X2, S) integrand11(X1 = 0, X2, S), xmin = 0, xmax = 1, ymin = 0, ymax = 1)$Q
+      result111 = integral2(function(X2, S) integrand11(X1 = 1, X2, S), xmin = 0, xmax = 1, ymin = 0, ymax = 1)$Q
       # expectations
-      result00 = integral2(function(X2, S) integrand(X1 = 0, X2, S, treat = 0), xmin = 0, xmax = 1, ymin = 0, ymax = 1)
-      result01 = integral2(function(X2, S) integrand(X1 = 0, X2, S, treat = 1), xmin = 0, xmax = 1, ymin = 0, ymax = 1)
-      result10 = integral2(function(X2, S) integrand(X1 = 1, X2, S, treat = 0), xmin = 0, xmax = 1, ymin = 0, ymax = 1)
-      result11 = integral2(function(X2, S) integrand(X1 = 1, X2, S, treat = 1), xmin = 0, xmax = 1, ymin = 0, ymax = 1)
-      result = 0.5*(0.3*result00$Q + 0.7*result01$Q) + 0.5*(0.3*result10$Q + 0.7*result11$Q)
+      result = 0.5*(0.3*result000 + 0.7*(result100 + result110)) + 0.5*(0.3*result001 + 0.7*(result101 + result111))
     }
   }
   
