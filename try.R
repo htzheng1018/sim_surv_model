@@ -53,7 +53,7 @@ run_on_cluster(
     )
     
     sim %<>% set_script(function() {
-      dat_phaseOne = create_data(L$n, L$surv_time$surv_type, L$surv_time$surv_params, "iid")
+      dat_phaseOne = create_data(L$n, L$surv_time$surv_type, L$surv_time$surv_params, "complex")
       
       dat_phaseTwo_vac = dat_phaseOne %>%
         dplyr::filter(Z == 1 & treat==1) # use phase two data
@@ -67,8 +67,8 @@ run_on_cluster(
       # true_plc = c()
       # true_vac = c()
       # for (i in 1: time_max) {
-      #   true_plc[i] = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, i, dat_phaseOne, "plc")
-      #   true_vac[i] = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, i, dat_phaseOne_vac, "vac")
+      #   true_plc[i] = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, i, dat_phaseOne, "plc", "math")
+      #   true_vac[i] = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, i, dat_phaseOne_vac, "vac", "math")
       # }
       # t_plc = which.min(abs(true_plc - 0.5))
       # print("placebo:")
@@ -77,10 +77,10 @@ run_on_cluster(
       # print("vaccine:")
       # print(t_vac)
       if (L$surv_time$surv_type == "Exponential") {
-        t_plc = 20
-        t_vac = 40
+        t_plc = 19
+        t_vac = 42
       } else if (L$surv_time$surv_type == "Gompertz") {
-        t_plc = 37
+        t_plc = 36
         t_vac = 44
       }
       
@@ -91,8 +91,8 @@ run_on_cluster(
       Q_true_plc = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, t_plc, dat_phaseOne, "plc", "math")
       Q_true_vac = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, t_vac, dat_phaseOne_vac, "vac", "math")
       Q_est_km = surv_km(t_plc, dat_phaseOne_plc)
-      Q_est_two_plc = surv_two(model_two_plc, t_plc, dat_phaseOne_plc, "plc")
-      Q_est_two_vac = surv_two(model_two_vac, t_vac, dat_phaseTwo_vac, "vac")
+      Q_est_two_plc = surv_two(model_two_plc, t_plc, dat_phaseOne_plc)
+      Q_est_two_vac = surv_two(model_two_vac, t_vac, dat_phaseTwo_vac)
       
       # get the true SE
       # se_est_km = se_km(t, dat_phaseOne)

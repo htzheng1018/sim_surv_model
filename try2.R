@@ -3,12 +3,15 @@ library(pracma)  # 用于数值积分
 set.seed(1018)
 
 # 定义参数
-alpha <- 0.1
-lambda <- 1e-3
-t <- 44
+# alpha <- 0.1
+# lambda <- 1e-3
+# t <- 36
+lambda = 2e-2
+t = 42
 
 # 定义 Q_0
-Q_0 <- exp((lambda / alpha) * (1 - exp(alpha * t)))
+# Q_0 <- exp((lambda / alpha) * (1 - exp(alpha * t)))
+Q_0 = exp(- lambda * t)
 
 # 定义 P(S | X1, X2, treat) 函数
 # P_S_given_X1_X2_treat <- function(S, X1, X2, treat) {

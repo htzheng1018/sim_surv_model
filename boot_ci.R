@@ -1,11 +1,11 @@
 # Bootstrap function (true survival function and estimators)
-boot_ci = function(data, t, trt_type) {
+boot_ci = function(data, t, type) {
   nn = nrow(data)
   R = 100
   surv_km.boot = c()
   surv_two.boot = c()
   
-  if (trt_type == "plc") {
+  if (type == "plc") {
     for (r in 1: R) {
       boot.samp = sample(1: nn, size = nn, replace = TRUE)
       data.boot = data[boot.samp, ]
@@ -13,7 +13,7 @@ boot_ci = function(data, t, trt_type) {
       surv_km.boot[r] = surv_km(t, data.boot)
       surv_two.boot[r] = surv_two(model.boot, t, data)
     }
-  } else if (trt_type == "vac") {
+  } else if (type == "vac") {
     for (r in 1: R) {
       boot.samp = sample(1: nn, size = nn, replace = TRUE)
       data.boot = data[boot.samp, ]

@@ -76,10 +76,10 @@ run_on_cluster(
       # print(t_vac)
       
       if (L$surv_time$surv_type == "Exponential") {
-        t_plc = 20
-        t_vac = 40
+        t_plc = 19
+        t_vac = 42
       } else if (L$surv_time$surv_type == "Gompertz") {
-        t_plc = 37
+        t_plc = 36
         t_vac = 44
       }
       
@@ -98,8 +98,8 @@ run_on_cluster(
       Q_est_two_vac = surv_two(model_two_vac, t_vac, dat_phaseTwo_vac)
       
       # get the true SE
-      # se_est_km = se_km(t, dat_phaseOne)
-      # se_est_two = se_two(t, dat_phaseOne)
+      se_est_km = se_km(t, dat_phaseOne)
+      se_est_two = se_two(t, dat_phaseOne)
       
       return(list(
         # survival functions
