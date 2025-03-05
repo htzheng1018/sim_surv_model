@@ -61,18 +61,18 @@ create_data = function(n, surv_type, surv_params, sample_type) {
                     "C" = C, "t" = t)
   
   # using ipwpoint function to generate inverse probability weights
-  if (sample_type == "iid") {
-    ipw = ifelse(Z == 1, 1 / prob_tmp, NA)
-  } else if (sample_type == "complex") {
-    # ipw = ipwpoint(
-    #   exposure = Z,
-    #   family = "binomial",  # The treatment is binary
-    #   link = "logit",
-    #   denominator = ~ X1 + X2 + treat,
-    #   data = data
-    # )$ipw.weights
-    ipw = ifelse(Z == 1, 1 / prob_tmp, NA)
-  }
+  # if (sample_type == "iid") {
+  #   ipw = ifelse(Z == 1, 1 / prob_tmp, NA)
+  # } else if (sample_type == "complex") {
+  #   ipw = ipwpoint(
+  #     exposure = Z,
+  #     family = "binomial",  # The treatment is binary
+  #     link = "logit",
+  #     denominator = ~ X1 + X2 + treat,
+  #     data = data
+  #   )$ipw.weights
+  # }
+  ipw = ifelse(Z == 1, 1 / prob_tmp, NA)
   
   # final data
   data = data %>% 

@@ -1,98 +1,65 @@
 # 加载必要的库
-library(pracma)  # 用于数值积分
+
+{
+  library(SimEngine)
+  library(pracma)
+  source("create_data.R", local = T)
+  source("surv_true.R", local = T)
+  source("surv_km.R", local = T)
+  source("surv_two.R", local = T)
+  source("se_km.R", local = T)
+  source("se_two.R", local = T)
+  source("boot_ci.R", local = T)
+} 
+
+# start time
+start_time = Sys.time()
+
+
+
 set.seed(1018)
 
 # 定义参数
-# alpha <- 0.1
-# lambda <- 1e-3
-# t <- 36
-lambda = 2e-2
+surv_type = "Exponential"
+surv_params = 2e-2
 t = 42
 
-# 定义 Q_0
-# Q_0 <- exp((lambda / alpha) * (1 - exp(alpha * t)))
-Q_0 = exp(- lambda * t)
+surv_type = "Gompertz"
+surv_params = c(0.1, 1e-3)
+t = 44
 
-# 定义 P(S | X1, X2, treat) 函数
-# P_S_given_X1_X2_treat <- function(S, X1, X2, treat) {
-#   prob_tmp = 1 / (1 + exp(0.5*X1 + 0.7*X2 + treat))
-#   result = ifelse(treat == 0, ifelse(S == 0, 1, 0), # treat = 0: S = 0 with probability 1
-#                   ifelse(S == 0, # treat = 1: S = 0 with probability prob_tmp, otherwise truncated normal
-#                          prob_tmp * ifelse(S == 0, 1, 0) + (1 - prob_tmp) * dtruncnorm(0, a = 0, b = 1, mean = 0.5, sd = 0.2),
-#                          (1 - prob_tmp) * dtruncnorm(S, a = 0, b = 1, mean = 0.5, sd = 0.2)))
-#   return(result)
-# }
-
-# 计算期望
-# treat = 0
-# S = 0
-integrand00 = function(X1, X2) {
-  unprop = 0.5*X1 + 0.7*X2
-  Q = Q_0 ^ exp(unprop)
-  result = Q
-  return(result)
-}
-result000 = integrate(function(X2) integrand00(X1 = 0, X2), lower = 0, upper = 1)$value # X1 = 0
-result001 = integrate(function(X2) integrand00(X1 = 1, X2), lower = 0, upper = 1)$value # X1 = 1
-
-# treat = 1
-# S = 0
-integrand10 = function(X1, X2) {
-  unprop = 0.5*X1 + 0.7*X2
-  Q = Q_0 ^ exp(unprop)
-  prob_tmp = 1 / (1 + exp(0.5*X1 + 0.7*X2 + 1))
-  result = Q * prob_tmp
-  return(result)
-}
-result100 = integrate(function(X2) integrand10(X1 = 0, X2), lower = 0, upper = 1)$value
-result101 = integrate(function(X2) integrand10(X1 = 1, X2), lower = 0, upper = 1)$value
-
-# S ~ (0,1)
-integrand11 = function(X1, X2, S) {
-  unprop = 0.5*X1 + 0.7*X2 - 2*S
-  Q = Q_0 ^ exp(unprop)
-  prob_tmp = 1 / (1 + exp(0.5*X1 + 0.7*X2 + 1))
-  result = Q * (1 - prob_tmp) * dtruncnorm(S, a = 0, b = 1, mean = 0.5, sd = 0.2)
-  return(result)
-}
-result110 = integral2(function(X2, S) integrand11(X1 = 0, X2, S), xmin = 0, xmax = 1, ymin = 0, ymax = 1)$Q
-result111 = integral2(function(X2, S) integrand11(X1 = 1, X2, S), xmin = 0, xmax = 1, ymin = 0, ymax = 1)$Q
-
-# expectation
-result = 0.5*(result100 + result110) + 0.5*(result101 + result111)
+n = 10000
 
 
 
+dat_phaseOne = create_data(n, surv_type, surv_params, "complex")
 
+dat_phaseTwo_vac = dat_phaseOne %>%
+  dplyr::filter(Z == 1 & treat==1) # use phase two data
+# dat_phaseOne_plc = dat_phaseOne[dat_phaseOne$treat == 0, ] # treat = 0 in placebo group
+dat_phaseOne_vac = dat_phaseOne[dat_phaseOne$treat == 1, ] # treat = 1 in vaccine group
+# model_two_plc = coxph(Surv(Y, delta) ~ X1 + X2, data = dat_phaseOne_plc) # no s in placebo group
+model_two_vac = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_phaseTwo_vac, weights = ipw) # s in vaccine group
 
-
-# sample
-source("create_data.R", local = T)
-sf_sample = function(Q_0) {
-  n = 1000
-  # treat = sample(0:1, n, replace = TRUE, prob = c(0.3, 0.7))
-  # X1 = rbinom(n = n, size = 1, prob = 0.5)
-  # X2 = runif(n = n, min = 0, max = 1)
-  # S = rtruncnorm(n = n, a = 0, b = 1, mean = 0.5, sd = 0.2) # truncated normal in (0, 1)
-  # prob_tmp = 1 / (1 + exp(0.5*X1 + 0.7*X2 + treat)) # to make edge_prob distributed not too extremely
-  # val_tmp = rbinom(n, prob = prob_tmp, size = 1)
-  # S = treat * (1 - val_tmp) * S
-  
-  
-  mydata = create_data(n, "Gompertz", c(0.1, 1e-3), "iid")
-  dat_vac = mydata[mydata$treat == 1, ]
-  X1 = dat_vac$X1
-  X2 = dat_vac$X2
-  S = dat_vac$S
-  
-  unprop = 0.5*X1 + 0.7*X2 - 2*S # have s in vaccine group
-  result = mean(Q_0 ^ (exp(unprop)))
-  return(result)
+if (surv_type == "Exponential") {
+  # t_plc = 19
+  t_vac = 42
+} else if (surv_type == "Gompertz") {
+  # t_plc = 36
+  t_vac = 44
 }
 
+# get the Survival probability at the specific time point
+# Q_true_plc = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, t_plc, dat_phaseOne, "plc", "math")
+Q_true_vac = surv_true(surv_type, surv_params, t_vac, dat_phaseOne_vac, "vac", "math")
+# Q_est_two_plc = surv_two(model_two_plc, t_plc, dat_phaseOne_plc)
+Q_est_two_vac = surv_two(model_two_vac, t_vac, dat_phaseTwo_vac, "vac")
 
-print(paste("数学期望值:", result))
-print(paste("抽样期望值:", sf_sample(Q_0)))
+
+
+print(paste("true Q is:", Q_true_vac))
+print(paste("estimated Q is:", Q_est_two_vac))
+
 
 
 

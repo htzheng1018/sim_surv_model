@@ -91,8 +91,8 @@ run_on_cluster(
       Q_true_plc = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, t_plc, dat_phaseOne, "plc", "math")
       Q_true_vac = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, t_vac, dat_phaseOne_vac, "vac", "math")
       Q_est_km = surv_km(t_plc, dat_phaseOne_plc)
-      Q_est_two_plc = surv_two(model_two_plc, t_plc, dat_phaseOne_plc)
-      Q_est_two_vac = surv_two(model_two_vac, t_vac, dat_phaseTwo_vac)
+      Q_est_two_plc = surv_two(model_two_plc, t_plc, dat_phaseOne_plc, "plc")
+      Q_est_two_vac = surv_two(model_two_vac, t_vac, dat_phaseTwo_vac, "vac")
       
       # get the true SE
       # se_est_km = se_km(t, dat_phaseOne)
