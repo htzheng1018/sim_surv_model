@@ -41,6 +41,7 @@ surv_true = function(surv_type, surv_params, t, data, type, integral) {
       integrand2 = function(X1, X2, S) {
         unprop = 0.5*X1 + 0.7*X2 - 2*S
         Q = Q_0 ^ exp(unprop)
+        # Q = pmax(Q_0 ^ exp(unprop), 1e-2)
         prob_tmp = 1 / (1 + exp(0.5*X1 + 0.7*X2 + 1))
         result = Q * (1 - prob_tmp) * dtruncnorm(S, a = 0, b = 1, mean = 0.5, sd = 0.2)
         return(result)
@@ -51,8 +52,6 @@ surv_true = function(surv_type, surv_params, t, data, type, integral) {
       result = 0.5*(result00 + result10) + 0.5*(result01 + result11)
     }
   }
-  
+
   return(result)
-  # return(mean(Q_0))
-  # return(mean(exp(unprop)))
 }

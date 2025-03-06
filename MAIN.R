@@ -102,6 +102,7 @@ run_on_cluster(
       # se_est_two = se_two(t, dat_phaseOne)
       
       
+      
       return(list(
         # survival functions
         "Q_true_plc" = Q_true_plc,
@@ -116,27 +117,24 @@ run_on_cluster(
         "two_pctg_vac" = (Q_est_two_vac - Q_true_vac) / Q_true_vac * 100,
         
         # variance in placebo group
-        "km_low_plc" = surv_ci_plc$km_low,
-        "km_up_plc" = surv_ci_plc$km_up,
+        "km_plc_low" = surv_ci_plc$km_low,
+        "km_plc_up" = surv_ci_plc$km_up,
         "se_km_plc_boot" = surv_ci_plc$km_se,
-        "se_km_vac_boot" = surv_ci_vac$km_se,
         # "se_km_est" = se_est_km,
-        "two_low_plc" = surv_ci_plc$two_low,
-        "two_up_plc" = surv_ci_plc$two_up,
+        "two_plc_low" = surv_ci_plc$two_low,
+        "two_plc_up" = surv_ci_plc$two_up,
         "se_two_plc_boot" = surv_ci_plc$two_se,
-        "se_two_vac_boot" = surv_ci_vac$two_se,
         # "se_two_est" = se_est_two,
         
         # variance in vaccine group
-        "km_low_vac" = surv_ci_vac$km_low,
-        "km_up_vac" = surv_ci_vac$km_up,
+        "km_vac_low" = surv_ci_vac$km_low,
+        "km_vac_up" = surv_ci_vac$km_up,
         "se_km_vac_boot" = surv_ci_vac$km_se,
         # "se_km_est" = se_est_km,
-        "two_low_vac" = surv_ci_vac$two_low,
-        "two_up_vac" = surv_ci_vac$two_up,
+        "two_vac_low" = surv_ci_vac$two_low,
+        "two_vac_up" = surv_ci_vac$two_up,
         "se_two_vac_boot" = surv_ci_vac$two_se,
         # "se_two_est" = se_est_two,
-        
         
         # "se_km_pctg" = (surv_ci$km_se - se_est_km) / se_est_km * 100,
         # "se_two_pctg" = (surv_ci$two_se - se_est_two) / se_est_two * 100,
@@ -207,12 +205,12 @@ run_on_cluster(
     
     # coverage
     coverage_km = sim %>% SimEngine::summarize(
-      list(stat = "coverage", lower = "km_low_plc", upper = "km_up_plc", truth = "Q_true_plc", name = "cov_km_plc"),
-      list(stat = "coverage", lower = "km_low_vac", upper = "km_up_vac", truth = "Q_true_vac", name = "cov_km_vac")
+      list(stat = "coverage", lower = "km_plc_low", upper = "km_plc_up", truth = "Q_true_plc", name = "cov_km_plc"),
+      list(stat = "coverage", lower = "km_vac_low", upper = "km_vac_up", truth = "Q_true_vac", name = "cov_km_vac")
     )
     coverage_two = sim %>% SimEngine::summarize(
-      list(stat = "coverage", lower = "two_low_plc", upper = "two_up_plc", truth = "Q_true_plc", name = "cov_twophase_plc"),
-      list(stat = "coverage", lower = "two_low_vac", upper = "two_up_vac", truth = "Q_true_vac", name = "cov_twophase_vac")
+      list(stat = "coverage", lower = "two_plc_low", upper = "two_plc_up", truth = "Q_true_plc", name = "cov_twophase_plc"),
+      list(stat = "coverage", lower = "two_vac_low", upper = "two_vac_up", truth = "Q_true_vac", name = "cov_twophase_vac")
     )
   },
   
