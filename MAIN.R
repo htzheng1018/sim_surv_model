@@ -37,7 +37,7 @@ run_on_cluster(
     sim = new_sim()
     
     sim %<>% set_levels(
-      n = c(500, 1000),
+      n = 500,
       # n = c(500, 1000, 2000, 4000, 8000),
       surv_time = list(
         "Exp" = list(surv_type = "Exponential", surv_params = 2e-2),
@@ -98,8 +98,9 @@ run_on_cluster(
       Q_est_two_vac = surv_two(model_two_vac, t_vac, dat_phaseTwo_vac, "vac")
       
       # get the true SE
-      se_est_km = se_km(t, dat_phaseOne)
-      se_est_two = se_two(t, dat_phaseOne)
+      # se_est_km = se_km(t, dat_phaseOne)
+      # se_est_two = se_two(t, dat_phaseOne)
+      
       
       return(list(
         # survival functions
@@ -141,6 +142,7 @@ run_on_cluster(
         # "se_two_pctg" = (surv_ci$two_se - se_est_two) / se_est_two * 100,
         ".complex" = list(
           "model_plc" = model_two_plc,
+          "model_vac" = model_two_vac,
           "data_plc" = dat_phaseOne_plc,
           "data_vac" = dat_phaseTwo_vac
           # "ci" = surv_ci
@@ -190,18 +192,18 @@ run_on_cluster(
     )
     
     # SE accuracy
-    accuracy_se_km = sim %>% SimEngine::summarize(
-      list(stat = "mean", x = "se_km_plc_boot", name = "se_km_plc"),
-      list(stat = "mean", x = "se_km_vac_boot", name = "se_km_vac")
+    # accuracy_se_km = sim %>% SimEngine::summarize(
+    #   list(stat = "mean", x = "se_km_plc_boot", name = "se_km_plc"),
+    #   list(stat = "mean", x = "se_km_vac_boot", name = "se_km_vac"),
       # list(stat = "mean", x = "se_km_pctg", name = "se_bias_km_pct"),
       # list(stat = "mean", x = "se_km_pctg", name = "se_bias_km_pct")
-    )
-    accuracy_se_two = sim %>% SimEngine::summarize(
-      list(stat = "mean", x = "se_two_plc_boot", name = "se_two_plc"),
-      list(stat = "mean", x = "se_two_vac_boot", name = "se_two_vac")
+    # )
+    # accuracy_se_two = sim %>% SimEngine::summarize(
+    #   list(stat = "mean", x = "se_two_plc_boot", name = "se_two_plc"),
+    #   list(stat = "mean", x = "se_two_vac_boot", name = "se_two_vac"),
       # list(stat = "mean", x = "se_two_pctg", name = "se_bias_two_pct"),
       # list(stat = "mean", x = "se_two_pctg", name = "se_bias_two_pct")
-    )
+    # )
     
     # coverage
     coverage_km = sim %>% SimEngine::summarize(
