@@ -37,8 +37,8 @@ run_on_cluster(
     sim = new_sim()
     
     sim %<>% set_levels(
-      n = 500,
-      # n = c(500, 1000, 2000, 4000, 8000),
+      # n = 500,
+      n = c(500, 1000, 2000, 4000, 8000),
       surv_time = list(
         "Exp" = list(surv_type = "Exponential", surv_params = 2e-2),
         "Gom" = list(surv_type = "Gompertz", surv_params = c(0.1, 1e-3))
@@ -50,7 +50,7 @@ run_on_cluster(
     )
     
     sim %<>% set_script(function() {
-      dat_phaseOne = create_data(L$n, L$surv_time$surv_type, L$surv_time$surv_params, "iid") # phase one data (original)
+      dat_phaseOne = create_data(L$n, L$surv_time$surv_type, L$surv_time$surv_params, "complex") # phase one data (original)
       dat_phaseTwo_vac = dat_phaseOne %>%
         dplyr::filter(Z == 1 & treat==1) # vaccine group in phase two data
       dat_phaseOne_plc = dat_phaseOne[dat_phaseOne$treat == 0, ] # treat = 0 in placebo group
