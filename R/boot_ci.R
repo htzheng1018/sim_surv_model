@@ -10,7 +10,7 @@ boot_ci = function(data, t, type) {
       boot.samp = sample(1: nn, size = nn, replace = TRUE)
       data.boot = data[boot.samp, ]
       model.boot = coxph(Surv(Y, delta) ~ X1 + X2, data = data.boot)
-      surv_km.boot[r] = surv_km(t, data.boot)
+      surv_km.boot[r] = surv_km(t, data.boot, type)
       surv_two.boot[r] = surv_two(model.boot, t, data, type)
     }
   } else if (type == "vac") {
@@ -18,7 +18,7 @@ boot_ci = function(data, t, type) {
       boot.samp = sample(1: nn, size = nn, replace = TRUE)
       data.boot = data[boot.samp, ]
       model.boot = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = data.boot, weights = ipw)
-      surv_km.boot[r] = surv_km(t, data.boot)
+      surv_km.boot[r] = surv_km(t, data.boot, type)
       surv_two.boot[r] = surv_two(model.boot, t, data, type)
     }
   }

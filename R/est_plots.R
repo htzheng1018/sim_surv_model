@@ -11,13 +11,15 @@
   library(SimEngine)
   library(ggplot2)
   library(gridExtra)
-  source("create_data.R", local = T)
-  source("surv_true.R", local = T)
-  source("surv_km.R", local = T)
-  source("surv_two.R", local = T)
-  source("se_km.R", local = T)
-  source("se_two.R", local = T)
-  source("boot_ci.R", local = T)
+  library(truncnorm)
+  library(survival)
+  source("R/create_data.R", local = T)
+  source("R/surv_true.R", local = T)
+  source("R/surv_km.R", local = T)
+  source("R/surv_two.R", local = T)
+  # source("R/se_km.R", local = T)
+  # source("R/se_two.R", local = T)
+  source("R/boot_ci.R", local = T)
 }
 
 
@@ -47,8 +49,10 @@ surv_time = list(
 
 
 
-p_plc = list()
-p_vac = list()
+p_two_plc = list()
+p_two_vac = list()
+p_km_plc = list()
+p_km_vac = list()
 for (k in 1:2) {
   surv = surv_time[[k]]
   
@@ -66,10 +70,16 @@ for (k in 1:2) {
   true_vac = c()
   est_two_plc = c()
   est_two_vac = c()
+  est_km_plc = c()
+  est_km_vac = c()
   two_plc_low = c()
   two_plc_up = c()
   two_vac_low = c()
   two_vac_up = c()
+  km_plc_low = c()
+  km_plc_up = c()
+  km_vac_low = c()
+  km_vac_up = c()
   time_i = c()
   for (i in seq(1, time_max, by = 1)) {
     time_i[i] = i
@@ -83,41 +93,71 @@ for (k in 1:2) {
     })
     est_two_plc[i] = surv_two(model_two_plc, i, dat_phaseOne_plc, "plc")
     est_two_vac[i] = surv_two(model_two_vac, i, dat_phaseTwo_vac, "vac")
+    est_km_plc[i] = surv_km(i, dat_phaseOne_plc, "plc")
+    est_km_vac[i] = surv_km(i, dat_phaseTwo_vac, "vac")
     surv_ci_plc = boot_ci(dat_phaseOne_plc, i, "plc")
     surv_ci_vac = boot_ci(dat_phaseTwo_vac, i, "vac")
     two_plc_low[i] = surv_ci_plc$two_low
     two_plc_up[i] = surv_ci_plc$two_up
     two_vac_low[i] = surv_ci_vac$two_low
     two_vac_up[i] = surv_ci_vac$two_up
+    km_plc_low[i] = surv_ci_plc$km_low
+    km_plc_up[i] = surv_ci_plc$km_up
+    km_vac_low[i] = surv_ci_vac$km_low
+    km_vac_up[i] = surv_ci_vac$km_up
   }
-  result = data.frame(time = time_i, true_plc = true_plc, true_vac = true_vac, est_plc = est_two_plc, est_vac = est_two_vac,
-                      plc_low = two_plc_low, plc_up = two_plc_up, vac_low = two_vac_low, vac_up = two_vac_up)
+  result = data.frame(time = time_i, true_plc = true_plc, true_vac = true_vac,
+                      est_two_plc = est_two_plc, est_two_vac = est_two_vac, est_km_plc = est_km_plc, est_km_vac = est_km_vac,
+                      two_plc_low = two_plc_low, two_plc_up = two_plc_up, two_vac_low = two_vac_low, two_vac_up = two_vac_up,
+                      km_plc_low = km_plc_low, km_plc_up = km_plc_up, km_vac_low = km_vac_low, km_vac_up = km_vac_up)
   
-  # plot the survival function in placebo group
-  p_plc[[k]] = ggplot(result, aes(x = time)) +
+  # plot the Two-phase sampling survival functions in the placebo group
+  p_two_plc[[k]] = ggplot(result, aes(x = time)) +
     geom_line(aes(y = true_plc, color = "true"), linewidth = 1) +
-    geom_line(aes(y = est_plc, color = "est"), linewidth = 1) +
-    geom_ribbon(aes(ymin = plc_low, ymax = plc_up), fill = "blue", alpha = 0.2) +
+    geom_line(aes(y = est_two_plc, color = "est"), linewidth = 1) +
+    geom_ribbon(aes(ymin = two_plc_low, ymax = two_plc_up), fill = "blue", alpha = 0.2) +
     labs(x = "time", y = "survival probability", color = "Legend") +
     theme_minimal() +
     scale_color_manual(values = c("true" = "red", "est" = "blue")) +
-    theme(legend.position = c(0.9, 0.9)) +
-    ggtitle(paste0("Survival curves in the placebo group (", surv$surv_type, ")"))
-  
-  # plot the survival function in vaccine group
-  p_vac[[k]] = ggplot(result, aes(x = time)) +
+    theme(legend.position.inside = c(0.9, 0.9)) +
+    ggtitle(paste0("Two-phase sampling survival curves in the placebo group (", surv$surv_type, ")"))
+  # plot the Two-phase sampling survival functions in the vaccine group
+  p_two_vac[[k]] = ggplot(result, aes(x = time)) +
     geom_line(aes(y = true_vac, color = "true"), linewidth = 1) +
-    geom_line(aes(y = est_vac, color = "est"), linewidth = 1) +
-    geom_ribbon(aes(ymin = vac_low, ymax = vac_up), fill = "blue", alpha = 0.2) +
+    geom_line(aes(y = est_two_vac, color = "est"), linewidth = 1) +
+    geom_ribbon(aes(ymin = two_vac_low, ymax = two_vac_up), fill = "blue", alpha = 0.2) +
     labs(x = "time", y = "survival probability", color = "Legend") +
     theme_minimal() +
     scale_color_manual(values = c("true" = "red", "est" = "blue")) +
-    theme(legend.position = c(0.9, 0.9)) +
-    ggtitle(paste0("Survival curves in the vaccine group (", surv$surv_type, ")"))
+    theme(legend.position.inside = c(0.9, 0.9)) +
+    ggtitle(paste0("Two-phase sampling survival curves in the vaccine group (", surv$surv_type, ")"))
+  
+  # plot the Two-phase sampling survival functions in the placebo group
+  p_km_plc[[k]] = ggplot(result, aes(x = time)) +
+    geom_line(aes(y = true_plc, color = "true"), linewidth = 1) +
+    geom_line(aes(y = est_km_plc, color = "est"), linewidth = 1) +
+    geom_ribbon(aes(ymin = km_plc_low, ymax = km_plc_up), fill = "blue", alpha = 0.2) +
+    labs(x = "time", y = "survival probability", color = "Legend") +
+    theme_minimal() +
+    scale_color_manual(values = c("true" = "red", "est" = "blue")) +
+    theme(legend.position.inside = c(0.9, 0.9)) +
+    ggtitle(paste0("K-M survival curves in the placebo group (", surv$surv_type, ")"))
+  # plot the Two-phase sampling survival functions in the vaccine group
+  p_km_vac[[k]] = ggplot(result, aes(x = time)) +
+    geom_line(aes(y = true_vac, color = "true"), linewidth = 1) +
+    geom_line(aes(y = est_km_vac, color = "est"), linewidth = 1) +
+    geom_ribbon(aes(ymin = km_vac_low, ymax = km_vac_up), fill = "blue", alpha = 0.2) +
+    labs(x = "time", y = "survival probability", color = "Legend") +
+    theme_minimal() +
+    scale_color_manual(values = c("true" = "red", "est" = "blue")) +
+    theme(legend.position.inside = c(0.9, 0.9)) +
+    ggtitle(paste0("K-M survival curves in the vaccine group (", surv$surv_type, ")"))
 }
 
-p = grid.arrange(p_plc[[1]], p_vac[[1]], p_plc[[2]], p_vac[[2]], ncol = 2)
-ggsave("Plots/plots_two.png", plot = p, width = 13.3, height = 8.3, dpi = 300)
+p_two = grid.arrange(p_two_plc[[1]], p_two_vac[[1]], p_two_plc[[2]], p_two_vac[[2]], ncol = 2)
+p_km = grid.arrange(p_km_plc[[1]], p_km_vac[[1]], p_km_plc[[2]], p_km_vac[[2]], ncol = 2)
+ggsave("Plots/plots_two.png", plot = p_two, width = 13.3, height = 8.3, dpi = 300)
+ggsave("Plots/plots_km.png", plot = p_km, width = 13.3, height = 8.3, dpi = 300)
 
 
 
