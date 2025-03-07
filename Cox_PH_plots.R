@@ -9,6 +9,7 @@
 {
   library(SimEngine)
   library(ggplot2)
+  library(gridExtra)
   source("create_data.R", local = T)
   source("surv_true.R", local = T)
   source("surv_km.R", local = T)
@@ -29,10 +30,11 @@
 
 # start time
 start_time = Sys.time()
+set.seed(1018)
 
 
 
-n = 8000
+n = 10000
 surv_time = list(
   "Exp" = list(surv_type = "Exponential", surv_params = 2e-2), # may be some problems
   "Gom" = list(surv_type = "Gompertz", surv_params = c(0.1, 1e-3))
@@ -91,28 +93,29 @@ for (k in 1:2) {
   
   # plot the survival function in placebo group
   p_plc[[k]] = ggplot(result, aes(x = time)) +
-    geom_line(aes(y = true_plc, color = "true_plc"), linewidth = 1) +
-    geom_line(aes(y = est_plc, color = "est_plc"), linewidth = 1) +
+    geom_line(aes(y = true_plc, color = "true"), linewidth = 1) +
+    geom_line(aes(y = est_plc, color = "est"), linewidth = 1) +
     geom_ribbon(aes(ymin = plc_low, ymax = plc_up), fill = "blue", alpha = 0.2) +
-    labs(x = "Time", y = "Survival Probability", color = "Legend") +
+    labs(x = "time", y = "survival probability", color = "Legend") +
     theme_minimal() +
-    scale_color_manual(values = c("true_plc" = "red", "est_plc" = "blue")) +
+    scale_color_manual(values = c("true" = "red", "est" = "blue")) +
     theme(legend.position = c(0.9, 0.9)) +
-    ggtitle("Survival Curves in the placebo group")
+    ggtitle(paste0("Survival curves in the placebo group (", surv$surv_type, ")"))
   
   # plot the survival function in vaccine group
   p_vac[[k]] = ggplot(result, aes(x = time)) +
-    geom_line(aes(y = true_vac, color = "true_vac"), linewidth = 1) +
-    geom_line(aes(y = est_vac, color = "est_vac"), linewidth = 1) +
+    geom_line(aes(y = true_vac, color = "true"), linewidth = 1) +
+    geom_line(aes(y = est_vac, color = "est"), linewidth = 1) +
     geom_ribbon(aes(ymin = vac_low, ymax = vac_up), fill = "blue", alpha = 0.2) +
-    labs(x = "Time", y = "Survival Probability", color = "Legend") +
+    labs(x = "time", y = "survival probability", color = "Legend") +
     theme_minimal() +
-    scale_color_manual(values = c("true_vac" = "red", "est_vac" = "blue")) +
+    scale_color_manual(values = c("true" = "red", "est" = "blue")) +
     theme(legend.position = c(0.9, 0.9)) +
-    ggtitle("Survival Curves in the vaccine group")
-  
-  
+    ggtitle(paste0("Survival curves in the vaccine group (", surv$surv_type, ")"))
 }
+
+p = grid.arrange(p_plc[[1]], p_vac[[1]], p_plc[[2]], p_vac[[2]], ncol = 2)
+ggsave("plots/plots_two.png", plot = p, width = 13.3, height = 8.3, dpi = 300)
 
 
 
