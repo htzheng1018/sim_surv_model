@@ -9,13 +9,13 @@
 # load SimEngine + functions
 {
   library(SimEngine)
-  source("create_data.R", local = T)
-  source("surv_true.R", local = T)
-  source("surv_km.R", local = T)
-  source("surv_two.R", local = T)
-  source("se_km.R", local = T)
-  source("se_two.R", local = T)
-  source("boot_ci.R", local = T)
+  source("R/create_data.R", local = T)
+  source("R/surv_true.R", local = T)
+  source("R/surv_km.R", local = T)
+  source("R/surv_two.R", local = T)
+  source("R/se_km.R", local = T)
+  source("R/se_two.R", local = T)
+  source("R/boot_ci.R", local = T)
 }
 
 
@@ -37,7 +37,7 @@ run_on_cluster(
     sim = new_sim()
     
     sim %<>% set_levels(
-      # n = 500,
+      # n = 1000,
       n = c(500, 1000, 2000, 4000, 8000),
       surv_time = list(
         "Exp" = list(surv_type = "Exponential", surv_params = 2e-2),
