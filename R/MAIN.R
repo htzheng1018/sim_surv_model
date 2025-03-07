@@ -1,4 +1,7 @@
+# This could be executed both locally and on a computing cluster.
 
+# For the Two-phase sampling estimators, we assessed their bias and variance within a CoxPH framework.  
+# Additionally, we used a Bootstrap method to evaluate the coverage and variance bias of the estimators.
 
 
 
@@ -19,13 +22,10 @@
 }
 
 
+
 ##############
 #### MAIN ####
 ##############
-
-# It can be ran both locally and in a cluster.
-
-# Fisrt step, for survival function in placebo group, verify the bias and the coverage of it using a Bootstrap method.
 
 # start time
 start_time = Sys.time()

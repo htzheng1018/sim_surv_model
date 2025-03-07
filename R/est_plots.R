@@ -1,3 +1,4 @@
+# This code was designed to generate plots in the paper.
 
 
 
@@ -18,6 +19,7 @@
   source("se_two.R", local = T)
   source("boot_ci.R", local = T)
 }
+
 
 
 ##############
@@ -115,7 +117,7 @@ for (k in 1:2) {
 }
 
 p = grid.arrange(p_plc[[1]], p_vac[[1]], p_plc[[2]], p_vac[[2]], ncol = 2)
-ggsave("plots/plots_two.png", plot = p, width = 13.3, height = 8.3, dpi = 300)
+ggsave("Plots/plots_two.png", plot = p, width = 13.3, height = 8.3, dpi = 300)
 
 
 
