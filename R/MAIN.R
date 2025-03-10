@@ -46,7 +46,7 @@ run_on_cluster(
     )
     
     sim %<>% set_config(num_sim = 1000, n_cores = 4, seed = 1018,
-                        packages = c("survival", "parallel", "truncnorm", "devtools", "ipw")
+                        packages = c("survival", "parallel", "truncnorm", "devtools", "ipw", "pracma")
     )
     
     sim %<>% set_script(function() {
@@ -92,8 +92,8 @@ run_on_cluster(
       # get the Survival probability at the specific time point
       Q_true_plc = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, t_plc, dat_phaseOne, "plc", "math")
       Q_true_vac = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, t_vac, dat_phaseOne_vac, "vac", "math")
-      Q_est_km_plc = surv_km(t_plc, dat_phaseOne_plc) # km estimator for placebo group
-      Q_est_km_vac = surv_km(t_vac, dat_phaseTwo_vac) # km estimator for vaccine group
+      Q_est_km_plc = surv_km(t_plc, dat_phaseOne_plc, "plc") # km estimator for placebo group
+      Q_est_km_vac = surv_km(t_vac, dat_phaseTwo_vac, "vac") # km estimator for vaccine group
       Q_est_two_plc = surv_two(model_two_plc, t_plc, dat_phaseOne_plc, "plc")
       Q_est_two_vac = surv_two(model_two_vac, t_vac, dat_phaseTwo_vac, "vac")
       
