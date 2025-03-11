@@ -219,6 +219,19 @@ run_on_cluster(
 
 
 
+# save results
+saveRDS(Q_est_km, file = "Evaluation/Q_est_km.rds")
+saveRDS(Q_est_two, file = "Evaluation/Q_est_two.rds")
+saveRDS(Q_true, file = "Evaluation/Q_true.rds")
+saveRDS(bias_Q_km, file = "Evaluation/bias_Q_km.rds")
+saveRDS(bias_Q_two, file = "Evaluation/bias_Q_two.rds")
+saveRDS(bias_Q_pct_km, file = "Evaluation/bias_Q_pct_km.rds")
+saveRDS(bias_Q_pct_two, file = "Evaluation/bias_Q_pct_two.rds")
+saveRDS(coverage_km, file = "Evaluation/coverage_km.rds")
+saveRDS(coverage_two, file = "Evaluation/coverage_two.rds")
+
+
+
 # end time
 end_time = Sys.time()
 execution_time = end_time - start_time
