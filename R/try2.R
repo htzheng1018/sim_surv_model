@@ -1,3 +1,7 @@
+library(pracma)
+library(truncnorm)
+
+
 set.seed(1018)
 n = 1000
 lambda = 2e-2
@@ -16,7 +20,6 @@ for(i in (1: 180)) {
   
   # result11[i] = integral2(function(X2, S) integrand2(X2, S), xmin = 0, xmax = 1, ymin = 0, ymax = 1)$Q
   # print(result11[i])
-  
   tryCatch({
     result11[i] = integral2(function(X2, S) integrand2(X2, S), xmin = 0, xmax = 1, ymin = 0, ymax = 1)$Q
   }, error = function(e) {result11[i] = result11[i - 1]}
