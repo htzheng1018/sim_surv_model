@@ -5,7 +5,7 @@ library(truncnorm)
 set.seed(1018)
 n = 1000
 lambda = 2e-2
-result11 = c() 
+result11 = c()
 
 for(i in (1: 180)) {
   Q_0 = exp(- lambda * i)
