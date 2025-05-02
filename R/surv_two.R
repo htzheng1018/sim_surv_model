@@ -12,6 +12,8 @@ surv_two = function(model, t, data, type) {
     result = mean(Q)
   } else if (type == "vac") {
     result = sum(Q * data$ipw) / sum(data$ipw)
+  } else if (type == "med") {
+    result = sum(Q * data$ipw) / sum(data$ipw)
   }
   return(result)
 }
