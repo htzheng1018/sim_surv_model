@@ -50,8 +50,33 @@ surv_true = function(surv_type, surv_params, t, data, type, integral) {
       result11 = integral2(function(X2, S) integrand2(X1 = 1, X2, S), xmin = 0, xmax = 1, ymin = 0, ymax = 1)$Q
       # expectations
       result = 0.5*(result00 + result10) + 0.5*(result01 + result11)
+    } else if (type == "med") {
+      # P(S | X1, X2, treat)
+      # treat = 0 in mediation group
+      # S = 0 (to avoid integrating the Dirac function)
+      integrand1 = function(X1, X2) {
+        unprop = 0.5*X1 + 0.7*X2
+        Q = Q_0 ^ exp(unprop)
+        prob_tmp = 1 / (1 + exp(0.5*X1 + 0.7*X2 + 0)) # treat = 0 in mediation term
+        result = Q * prob_tmp
+        return(result)
+      }
+      result00 = integrate(function(X2) integrand1(X1 = 0, X2), lower = 0, upper = 1)$value
+      result01 = integrate(function(X2) integrand1(X1 = 1, X2), lower = 0, upper = 1)$value
+      # S > 0
+      integrand2 = function(X1, X2, S) {
+        unprop = 0.5*X1 + 0.7*X2 - 2*S
+        Q = Q_0 ^ exp(unprop)
+        # Q = pmax(Q_0 ^ exp(unprop), 1e-2)
+        prob_tmp = 1 / (1 + exp(0.5*X1 + 0.7*X2 + 0)) # treat = 0 in mediation term
+        result = Q * (1 - prob_tmp) * dtruncnorm(S, a = 0, b = 1, mean = 0.5, sd = 0.2)
+        return(result)
+      }
+      result10 = integral2(function(X2, S) integrand2(X1 = 0, X2, S), xmin = 0, xmax = 1, ymin = 0, ymax = 1)$Q
+      result11 = integral2(function(X2, S) integrand2(X1 = 1, X2, S), xmin = 0, xmax = 1, ymin = 0, ymax = 1)$Q
+      # expectations
+      result = 0.5*(result00 + result10) + 0.5*(result01 + result11)
     }
   }
-
   return(result)
 }
