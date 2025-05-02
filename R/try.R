@@ -37,8 +37,8 @@ run_on_cluster(
     sim = new_sim()
     
     sim %<>% set_levels(
-      n = 1000,
-      # n = c(500, 1000, 2000, 4000, 8000),
+      # n = 1000,
+      n = c(500, 1000, 2000, 4000, 8000),
       surv_time = list(
         "Exp" = list(surv_type = "Exponential", surv_params = 2e-2),
         "Gom" = list(surv_type = "Gompertz", surv_params = c(0.1, 1e-3))
@@ -57,7 +57,7 @@ run_on_cluster(
       dat_phaseOne_vac = dat_phaseOne[dat_phaseOne$treat == 1, ] # treat = 1 in vaccine group
       model_two_plc = coxph(Surv(Y, delta) ~ X1 + X2, data = dat_phaseOne_plc) # no s in placebo group
       model_two_vac = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_phaseTwo_vac, weights = ipw) # s in vaccine group
-      model_two_med = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_phaseOne_plc, weights = ipw) # s in vaccine group
+      model_two_med = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_phaseOne_plc) # s in vaccine group
       
       
       
@@ -233,15 +233,15 @@ run_on_cluster(
 
 
 # save results
-saveRDS(Q_est_km, file = "Evaluation/Q_est_km.rds")
-saveRDS(Q_est_two, file = "Evaluation/Q_est_two.rds")
-saveRDS(Q_true, file = "Evaluation/Q_true.rds")
-saveRDS(bias_Q_km, file = "Evaluation/bias_Q_km.rds")
-saveRDS(bias_Q_two, file = "Evaluation/bias_Q_two.rds")
-saveRDS(bias_Q_pct_km, file = "Evaluation/bias_Q_pct_km.rds")
-saveRDS(bias_Q_pct_two, file = "Evaluation/bias_Q_pct_two.rds")
-saveRDS(coverage_km, file = "Evaluation/coverage_km.rds")
-saveRDS(coverage_two, file = "Evaluation/coverage_two.rds")
+# saveRDS(Q_est_km, file = "Evaluation/Q_est_km.rds")
+# saveRDS(Q_est_two, file = "Evaluation/Q_est_two.rds")
+# saveRDS(Q_true, file = "Evaluation/Q_true.rds")
+# saveRDS(bias_Q_km, file = "Evaluation/bias_Q_km.rds")
+# saveRDS(bias_Q_two, file = "Evaluation/bias_Q_two.rds")
+# saveRDS(bias_Q_pct_km, file = "Evaluation/bias_Q_pct_km.rds")
+# saveRDS(bias_Q_pct_two, file = "Evaluation/bias_Q_pct_two.rds")
+# saveRDS(coverage_km, file = "Evaluation/coverage_km.rds")
+# saveRDS(coverage_two, file = "Evaluation/coverage_two.rds")
 
 
 
