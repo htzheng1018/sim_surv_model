@@ -1,3 +1,7 @@
+# This could be executed both locally and on a computing cluster.
+
+# For the Two-phase sampling estimators, we assessed their bias and variance within a CoxPH framework.  
+# Additionally, we used a Bootstrap method to evaluate the coverage and variance bias of the estimators.
 
 
 
@@ -18,13 +22,10 @@
 }
 
 
+
 ##############
 #### MAIN ####
 ##############
-
-# It can be ran both locally and in a cluster.
-
-# Fisrt step, for survival function in placebo group, verify the bias and the coverage of it using a Bootstrap method.
 
 # start time
 start_time = Sys.time()
@@ -36,12 +37,8 @@ run_on_cluster(
     sim = new_sim()
     
     sim %<>% set_levels(
-      n = c(1000, 2000),
+      n = 1000,
       # n = c(500, 1000, 2000, 4000, 8000),
-      # surv_time = list(
-      #   "Exp" = list(surv_type = "Exponential", surv_params = 1.5e-3), # may be some problems
-      #   "Gom" = list(surv_type = "Gompertz", surv_params = c(0.2138, 7e-8))
-      # )
       surv_time = list(
         "Exp" = list(surv_type = "Exponential", surv_params = 2e-2),
         "Gom" = list(surv_type = "Gompertz", surv_params = c(0.1, 1e-3))
@@ -53,22 +50,24 @@ run_on_cluster(
     )
     
     sim %<>% set_script(function() {
-      dat_phaseOne = create_data(L$n, L$surv_time$surv_type, L$surv_time$surv_params, "complex")
-      
+      dat_phaseOne = create_data(L$n, L$surv_time$surv_type, L$surv_time$surv_params, "complex") # phase one data (original)
       dat_phaseTwo_vac = dat_phaseOne %>%
-        dplyr::filter(Z == 1 & treat==1) # use phase two data
+        dplyr::filter(Z == 1 & treat==1) # vaccine group in phase two data
       dat_phaseOne_plc = dat_phaseOne[dat_phaseOne$treat == 0, ] # treat = 0 in placebo group
       dat_phaseOne_vac = dat_phaseOne[dat_phaseOne$treat == 1, ] # treat = 1 in vaccine group
       model_two_plc = coxph(Surv(Y, delta) ~ X1 + X2, data = dat_phaseOne_plc) # no s in placebo group
       model_two_vac = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_phaseTwo_vac, weights = ipw) # s in vaccine group
+      model_two_med = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_phaseOne_plc, weights = ipw) # s in vaccine group
+      
+      
       
       # choose a specific time
       # time_max = round(max(dat_phaseOne$Y))
       # true_plc = c()
       # true_vac = c()
       # for (i in 1: time_max) {
-      #   true_plc[i] = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, i, dat_phaseOne, "plc", "math")
-      #   true_vac[i] = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, i, dat_phaseOne_vac, "vac", "math")
+      #   true_plc[i] = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, i, dat_phaseOne, "plc")
+      #   true_vac[i] = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, i, dat_phaseOne_vac, "vac")
       # }
       # t_plc = which.min(abs(true_plc - 0.5))
       # print("placebo:")
@@ -76,6 +75,7 @@ run_on_cluster(
       # t_vac = which.min(abs(true_vac - 0.5))
       # print("vaccine:")
       # print(t_vac)
+      
       if (L$surv_time$surv_type == "Exponential") {
         t_plc = 19
         t_vac = 42
@@ -84,43 +84,74 @@ run_on_cluster(
         t_vac = 44
       }
       
-      # # bootstrap to get the variance of true survival functions and estimators
-      # surv_ci = boot_ci(dat_two_plc, t)
+      
+      
+      # bootstrap to get the variance of true survival functions and estimators
+      # surv_ci_plc = boot_ci(dat_phaseOne_plc, t_plc, "plc") # variance in placebo group
+      # surv_ci_vac = boot_ci(dat_phaseTwo_vac, t_vac, "vac") # variance in vaccine group
       
       # get the Survival probability at the specific time point
-      Q_true_plc = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, t_plc, dat_phaseOne, "plc", "math")
-      Q_true_vac = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, t_vac, dat_phaseOne_vac, "vac", "math")
-      Q_est_km_plc = surv_km(t_plc, dat_phaseOne_plc, "plc")
-      Q_est_km_vac = surv_km(t_plc, dat_phaseTwo_plc, "vac")
-      Q_est_two_plc = surv_two(model_two_plc, t_plc, dat_phaseOne_plc, "plc")
-      Q_est_two_vac = surv_two(model_two_vac, t_vac, dat_phaseTwo_vac, "vac")
+      # Q_true_plc = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, t_plc, dat_phaseOne, "plc", "math")
+      # Q_true_vac = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, t_vac, dat_phaseOne_vac, "vac", "math")
+      Q_true_med = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, t_vac, dat_phaseOne_vac, "med", "math")
+      
+      # Q_est_km_plc = surv_km(t_plc, dat_phaseOne_plc, "plc") # km estimator for placebo group
+      # Q_est_km_vac = surv_km(t_vac, dat_phaseTwo_vac, "vac") # km estimator for vaccine group
+      # Q_est_two_plc = surv_two(model_two_plc, t_plc, dat_phaseOne_plc, "plc")
+      # Q_est_two_vac = surv_two(model_two_vac, t_vac, dat_phaseTwo_vac, "vac")
+      Q_est_two_med = surv_two(model_two_med, t_vac, dat_phaseTwo_vac, "med")
       
       # get the true SE
       # se_est_km = se_km(t, dat_phaseOne)
       # se_est_two = se_two(t, dat_phaseOne)
       
+      
+      
       return(list(
-        "Q_true_plc" = Q_true_plc,
-        "Q_true_vac" = Q_true_vac,
-        "Q_est_km" = Q_est_km,
-        "Q_est_two_plc" = Q_est_two_plc,
-        "Q_est_two_vac" = Q_est_two_vac,
-        # "km_low" = surv_ci$km_low,
-        # "km_up" = surv_ci$km_up,
-        # "se_km_boot" = surv_ci$km_se,
+        # survival functions
+        # "Q_true_plc" = Q_true_plc,
+        # "Q_true_vac" = Q_true_vac,
+        "Q_true_med" = Q_true_med,
+        # "Q_est_km_plc" = Q_est_km_plc,
+        # "Q_est_km_vac" = Q_est_km_vac,
+        # "Q_est_two_plc" = Q_est_two_plc,
+        # "Q_est_two_vac" = Q_est_two_vac,
+        "Q_est_two_med" = Q_est_two_med,
+        # "km_pctg_plc" = (Q_est_km_plc - Q_true_plc) / Q_true_plc * 100,
+        # "km_pctg_vac" = (Q_est_km_vac - Q_true_vac) / Q_true_vac * 100,
+        # "two_pctg_plc" = (Q_est_two_plc - Q_true_plc) / Q_true_plc * 100,
+        # "two_pctg_vac" = (Q_est_two_vac - Q_true_vac) / Q_true_vac * 100,
+        "two_pctg_med" = (Q_est_two_med - Q_true_med) / Q_true_med * 100,
+        
+        # variance in placebo group
+        # "km_plc_low" = surv_ci_plc$km_low,
+        # "km_plc_up" = surv_ci_plc$km_up,
+        # "se_km_plc_boot" = surv_ci_plc$km_se,
         # "se_km_est" = se_est_km,
-        # "two_low" = surv_ci$two_low,
-        # "two_up" = surv_ci$two_up,
-        # "se_two_boot" = surv_ci$two_se,
+        # "two_plc_low" = surv_ci_plc$two_low,
+        # "two_plc_up" = surv_ci_plc$two_up,
+        # "se_two_plc_boot" = surv_ci_plc$two_se,
         # "se_two_est" = se_est_two,
-        "km_pctg" = (Q_est_km - Q_true_plc) / Q_true_plc * 100,
-        "two_pctg_plc" = (Q_est_two_plc - Q_true_plc) / Q_true_plc * 100,
-        "two_pctg_vac" = (Q_est_two_vac - Q_true_vac) / Q_true_vac * 100,
+        
+        # variance in vaccine group
+        # "km_vac_low" = surv_ci_vac$km_low,
+        # "km_vac_up" = surv_ci_vac$km_up,
+        # "se_km_vac_boot" = surv_ci_vac$km_se,
+        # "se_km_est" = se_est_km,
+        # "two_vac_low" = surv_ci_vac$two_low,
+        # "two_vac_up" = surv_ci_vac$two_up,
+        # "se_two_vac_boot" = surv_ci_vac$two_se,
+        # "se_two_est" = se_est_two,
+        
         # "se_km_pctg" = (surv_ci$km_se - se_est_km) / se_est_km * 100,
         # "se_two_pctg" = (surv_ci$two_se - se_est_two) / se_est_two * 100,
         ".complex" = list(
-          "model" = model_two_plc,
-          "data" = dat_phaseOne_plc
+          # "model_plc" = model_two_plc,
+          # "model_vac" = model_two_vac,
+          "model_med" = model_two_med,
+          # "data_plc" = dat_phaseOne_plc,
+          # "data_vac" = dat_phaseTwo_vac
+          "data_med" = dat_phaseOne_plc
           # "ci" = surv_ci
         )
       ))
@@ -135,37 +166,65 @@ run_on_cluster(
   last = {
     
     # mean
-    Q_true_plc = sim %>% SimEngine::summarize(list(stat = "mean", x = "Q_true_plc"))
-    Q_true_vac = sim %>% SimEngine::summarize(list(stat = "mean", x = "Q_true_vac"))
-    # Q_est_km = sim %>% SimEngine::summarize(list(stat = "mean", x = "Q_est_km"))
-    Q_est_two_plc = sim %>% SimEngine::summarize(list(stat = "mean", x = "Q_est_two_plc"))
-    Q_est_two_vac = sim %>% SimEngine::summarize(list(stat = "mean", x = "Q_est_two_vac"))
+    Q_true = sim %>% SimEngine::summarize(
+      # list(stat = "mean", x = "Q_true_plc"),
+      # list(stat = "mean", x = "Q_true_vac")
+      list(stat = "mean", x = "Q_true_med")
+    )
+    # Q_est_km = sim %>% SimEngine::summarize(
+    #   list(stat = "mean", x = "Q_est_km_plc"),
+    #   list(stat = "mean", x = "Q_est_km_vac")
+    # )
+    Q_est_two = sim %>% SimEngine::summarize(
+      # list(stat = "mean", x = "Q_est_two_plc"),
+      # list(stat = "mean", x = "Q_est_two_vac")
+      list(stat = "mean", x = "Q_est_two_med")
+    )
+    
     # bias
-    bias_Q = sim %>% SimEngine::summarize(
-      # list(stat = "bias", estimate = "Q_est_km", truth = "Q_true", name = "bias_km"),
-      list(stat = "bias", estimate = "Q_est_two_plc", truth = "Q_true_plc", name = "bias_twophase_plc"),
-      list(stat = "bias", estimate = "Q_est_two_vac", truth = "Q_true_vac", name = "bias_twophase_vac")
-      # list(stat = "coverage", lower = "km_low", upper = "km_up", truth = "Q_true", name = "cov_km"),
-      # list(stat = "coverage", lower = "two_low", upper = "two_up", truth = "Q_true", name = "cov_twophase")
+    # bias_Q_km = sim %>% SimEngine::summarize(
+    #   list(stat = "bias", estimate = "Q_est_km_plc", truth = "Q_true_plc", name = "bias_km_plc"),
+    #   list(stat = "bias", estimate = "Q_est_km_vac", truth = "Q_true_vac", name = "bias_km_vac")
+    # )
+    bias_Q_two = sim %>% SimEngine::summarize(
+      # list(stat = "bias", estimate = "Q_est_two_plc", truth = "Q_true_plc", name = "bias_twophase_plc"),
+      # list(stat = "bias", estimate = "Q_est_two_vac", truth = "Q_true_vac", name = "bias_twophase_vac")
+      list(stat = "bias", estimate = "Q_est_two_med", truth = "Q_true_med", name = "bias_twophase_med")
     )
     # bias percentage
-    bias_Q_pct = sim %>% SimEngine::summarize(
-      # list(stat = "mean", x = "km_pctg", name = "bias_km_pct"),
-      list(stat = "mean", x = "two_pctg_plc", name = "bias_twophase_pct_plc"),
-      list(stat = "mean", x = "two_pctg_vac", name = "bias_twophase_pct_vac")
+    # bias_Q_pct_km = sim %>% SimEngine::summarize(
+    #   list(stat = "mean", x = "km_pctg_plc", name = "bias_km_pct_plc"),
+    #   list(stat = "mean", x = "km_pctg_vac", name = "bias_km_pct_vac")
+    # )
+    bias_Q_pct_two = sim %>% SimEngine::summarize(
+      # list(stat = "mean", x = "two_pctg_plc", name = "bias_twophase_pct_plc"),
+      # list(stat = "mean", x = "two_pctg_vac", name = "bias_twophase_pct_vac")
+      list(stat = "mean", x = "two_pctg_med", name = "bias_twophase_pct_med")
     )
+    
     # SE accuracy
-    # accuracy_se = sim %>% SimEngine::summarize(
-    #   list(stat = "mean", x = "se_km_boot", name = "se_km"),
-    #   list(stat = "mean", x = "se_two_boot", name = "se_two"),
-    #   list(stat = "mean", x = "se_km_pctg", name = "se_bias_km_pct"),
-    #   list(stat = "mean", x = "se_two_pctg", name = "se_bias_two_pct")
+    # accuracy_se_km = sim %>% SimEngine::summarize(
+    #   list(stat = "mean", x = "se_km_plc_boot", name = "se_km_plc"),
+    #   list(stat = "mean", x = "se_km_vac_boot", name = "se_km_vac"),
+    # list(stat = "mean", x = "se_km_pctg", name = "se_bias_km_pct"),
+    # list(stat = "mean", x = "se_km_pctg", name = "se_bias_km_pct")
+    # )
+    # accuracy_se_two = sim %>% SimEngine::summarize(
+    #   list(stat = "mean", x = "se_two_plc_boot", name = "se_two_plc"),
+    #   list(stat = "mean", x = "se_two_vac_boot", name = "se_two_vac"),
+    # list(stat = "mean", x = "se_two_pctg", name = "se_bias_two_pct"),
+    # list(stat = "mean", x = "se_two_pctg", name = "se_bias_two_pct")
     # )
     
-    print(head(sim$results))
-    print(bias_Q)
-    print(bias_Q_pct)
-    
+    # coverage
+    # coverage_km = sim %>% SimEngine::summarize(
+    #   list(stat = "coverage", lower = "km_plc_low", upper = "km_plc_up", truth = "Q_true_plc", name = "cov_km_plc"),
+    #   list(stat = "coverage", lower = "km_vac_low", upper = "km_vac_up", truth = "Q_true_vac", name = "cov_km_vac")
+    # )
+    # coverage_two = sim %>% SimEngine::summarize(
+    #   list(stat = "coverage", lower = "two_plc_low", upper = "two_plc_up", truth = "Q_true_plc", name = "cov_twophase_plc"),
+    #   list(stat = "coverage", lower = "two_vac_low", upper = "two_vac_up", truth = "Q_true_vac", name = "cov_twophase_vac")
+    # )
   },
   
   cluster_config = list(js = "slurm")
@@ -173,7 +232,24 @@ run_on_cluster(
 
 
 
+# save results
+saveRDS(Q_est_km, file = "Evaluation/Q_est_km.rds")
+saveRDS(Q_est_two, file = "Evaluation/Q_est_two.rds")
+saveRDS(Q_true, file = "Evaluation/Q_true.rds")
+saveRDS(bias_Q_km, file = "Evaluation/bias_Q_km.rds")
+saveRDS(bias_Q_two, file = "Evaluation/bias_Q_two.rds")
+saveRDS(bias_Q_pct_km, file = "Evaluation/bias_Q_pct_km.rds")
+saveRDS(bias_Q_pct_two, file = "Evaluation/bias_Q_pct_two.rds")
+saveRDS(coverage_km, file = "Evaluation/coverage_km.rds")
+saveRDS(coverage_two, file = "Evaluation/coverage_two.rds")
+
+
+
 # end time
 end_time = Sys.time()
 execution_time = end_time - start_time
 print(execution_time)
+
+
+
+
