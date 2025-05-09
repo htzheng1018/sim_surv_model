@@ -57,7 +57,7 @@ surv_true = function(surv_type, surv_params, t, data, type, integral) {
       integrand1 = function(X1, X2) {
         unprop = 0.5*X1 + 0.7*X2
         Q = Q_0 ^ exp(unprop)
-        prob_tmp = 1 / (1 + exp(0.5*X1 + 0.7*X2 + 0)) # treat = 0 in mediation term
+        prob_tmp = 1 / (1 + exp(0.5*X1 + 0.7*X2 + 1)) # treat = 1 in mediation term
         result = Q * prob_tmp
         return(result)
       }
@@ -68,7 +68,7 @@ surv_true = function(surv_type, surv_params, t, data, type, integral) {
         unprop = 0.5*X1 + 0.7*X2 - 2*S
         Q = Q_0 ^ exp(unprop)
         # Q = pmax(Q_0 ^ exp(unprop), 1e-2)
-        prob_tmp = 1 / (1 + exp(0.5*X1 + 0.7*X2 + 0)) # treat = 0 in mediation term
+        prob_tmp = 1 / (1 + exp(0.5*X1 + 0.7*X2 + 1)) # treat = 1 in mediation term
         result = Q * (1 - prob_tmp) * dtruncnorm(S, a = 0, b = 1, mean = 0.5, sd = 0.2)
         return(result)
       }

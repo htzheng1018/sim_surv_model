@@ -1,35 +1,35 @@
-library(pracma)
-library(truncnorm)
+# load SimEngine + functions
+{
+  library(SimEngine)
+  source("R/create_data.R", local = T)
+  source("R/surv_true.R", local = T)
+  source("R/surv_km.R", local = T)
+  source("R/surv_two.R", local = T)
+  source("R/se_km.R", local = T)
+  source("R/se_two.R", local = T)
+  source("R/boot_ci.R", local = T)
+}
 
 
 set.seed(1018)
 n = 1000
 lambda = 2e-2
-result11 = c()
-
-for(i in (1: 180)) {
-  Q_0 = exp(- lambda * i)
-  integrand2 = function(X2, S) {
-    unprop = 0.5*1 + 0.7*X2 - 2*S
-    # Q = pmax(Q_0 ^ exp(unprop), 1e-2)
-    Q = Q_0 ^ exp(unprop)
-    prob_tmp = 1 / (1 + exp(0.5*1 + 0.7*X2 + 1))
-    result = Q * (1 - prob_tmp) * dtruncnorm(S, a = 0, b = 1, mean = 0.5, sd = 0.2)
-    return(result)
-  }
-  
-  # result11[i] = integral2(function(X2, S) integrand2(X2, S), xmin = 0, xmax = 1, ymin = 0, ymax = 1)$Q
-  # print(result11[i])
-  tryCatch({
-    result11[i] = integral2(function(X2, S) integrand2(X2, S), xmin = 0, xmax = 1, ymin = 0, ymax = 1)$Q
-  }, error = function(e) {result11[i] = result11[i - 1]}
-  )
-}
 
 
 
+dat_phaseOne = create_data(n, "Exponential", lambda, "complex")
+dat_phaseTwo_vac = dat_phaseOne %>%
+  dplyr::filter(Z == 1 & treat==1) # vaccine group in phase two data
+dat_phaseOne_med = dat_phaseOne[dat_phaseOne$treat == 1, ]
+dat_phaseOne_med$S = 0
+dat_phaseTwo_med = dat_phaseTwo_vac # treat = 1 in intermediate group
+dat_phaseTwo_med$S = 0 # s = 0 in intermediate group
 
+model_two_med = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_phaseTwo_med) # s =0 in intermediate group
+# print(model_two_med)
 
+Q_true_med = surv_true("Exponential", lambda, 40, dat_phaseOne_med, "med", "math")
+print(Q_true_med)
 
-
-
+Q_est_two_med = surv_two(model_two_med, 40, dat_phaseTwo_med, "med")
+print(Q_est_two_med)
