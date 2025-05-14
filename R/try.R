@@ -54,14 +54,9 @@ run_on_cluster(
       dat_phaseTwo_vac = dat_phaseOne %>%
         dplyr::filter(Z == 1 & treat==1) # vaccine group in phase two data
       dat_phaseOne_plc = dat_phaseOne[dat_phaseOne$treat == 0, ] # treat = 0 in placebo group
-      dat_phaseOne_med = dat_phaseOne[dat_phaseOne$treat == 1, ]
-      dat_phaseOne_med$S = 0
-      dat_phaseTwo_med = dat_phaseTwo_vac # treat = 1 in intermediate group
-      dat_phaseTwo_med$S = 0 # s = 0 in intermediate group
-      # model_two_plc = coxph(Surv(Y, delta) ~ X1 + X2, data = dat_phaseOne_plc) # no s in placebo group
-      # model_two_vac = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_phaseTwo_vac, weights = ipw) # s in vaccine group
-      model_two_med = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_phaseTwo_med) # s =0 in intermediate group
-      print(model_two_med)
+      dat_phaseOne_vac = dat_phaseOne[dat_phaseOne$treat == 1, ] # treat = 1 in vaccine group
+      model_two_plc = coxph(Surv(Y, delta) ~ X1 + X2, data = dat_phaseOne_plc) # no s in placebo group
+      model_two_vac = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_phaseTwo_vac, weights = ipw) # s in vaccine group
       
       
       # choose a specific time
@@ -96,13 +91,13 @@ run_on_cluster(
       # get the Survival probability at the specific time point
       # Q_true_plc = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, t_plc, dat_phaseOne, "plc", "math")
       # Q_true_vac = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, t_vac, dat_phaseOne_vac, "vac", "math")
-      Q_true_med = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, t_vac, dat_phaseOne_med, "med", "math")
+      Q_true_med = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, t_vac, dat_phaseOne_vac, "med", "math")
       
       # Q_est_km_plc = surv_km(t_plc, dat_phaseOne_plc, "plc") # km estimator for placebo group
       # Q_est_km_vac = surv_km(t_vac, dat_phaseTwo_vac, "vac") # km estimator for vaccine group
       # Q_est_two_plc = surv_two(model_two_plc, t_plc, dat_phaseOne_plc, "plc")
       # Q_est_two_vac = surv_two(model_two_vac, t_vac, dat_phaseTwo_vac, "vac")
-      Q_est_two_med = surv_two(model_two_med, t_vac, dat_phaseTwo_med, "med")
+      Q_est_two_med = surv_two(model_two_vac, t_vac, dat_phaseTwo_vac, "med")
       
       # get the true SE
       # se_est_km = se_km(t, dat_phaseOne)
@@ -151,10 +146,10 @@ run_on_cluster(
         ".complex" = list(
           # "model_plc" = model_two_plc,
           # "model_vac" = model_two_vac,
-          "model_med" = model_two_med,
+          "model_med" = model_two_vac,
           # "data_plc" = dat_phaseOne_plc,
           # "data_vac" = dat_phaseTwo_vac
-          "data_med" = dat_phaseOne_plc
+          "data_med" = dat_phaseOne_vac
           # "ci" = surv_ci
         )
       ))
