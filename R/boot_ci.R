@@ -21,6 +21,14 @@ boot_ci = function(data, t, type) {
       surv_km.boot[r] = surv_km(t, data.boot, type)
       surv_two.boot[r] = surv_two(model.boot, t, data, type)
     }
+  } else if (type == "med") {
+    for (r in 1: R) {
+      boot.samp = sample(1: nn, size = nn, replace = TRUE)
+      data.boot = data[boot.samp, ]
+      model.boot = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = data.boot, weights = ipw)
+      surv_km.boot[r] = surv_km(t, data.boot, type)
+      surv_two.boot[r] = surv_two(model.boot, t, data, type)
+    }
   }
 
   ci_km = quantile(surv_km.boot, prob = c(0.025, 0.975))
