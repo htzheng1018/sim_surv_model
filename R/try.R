@@ -63,9 +63,11 @@ run_on_cluster(
       # time_max = round(max(dat_phaseOne$Y))
       # true_plc = c()
       # true_vac = c()
+      # true_med = c()
       # for (i in 1: time_max) {
-      #   true_plc[i] = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, i, dat_phaseOne, "plc")
-      #   true_vac[i] = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, i, dat_phaseOne_vac, "vac")
+      #   true_plc[i] = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, i, dat_phaseOne, "plc", "sample")
+      #   true_vac[i] = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, i, dat_phaseOne_vac, "vac", "sample")
+      #   true_med[i] = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, i, dat_phaseOne_vac, "med", "sample")
       # }
       # t_plc = which.min(abs(true_plc - 0.5))
       # print("placebo:")
@@ -73,13 +75,18 @@ run_on_cluster(
       # t_vac = which.min(abs(true_vac - 0.5))
       # print("vaccine:")
       # print(t_vac)
-      
+      # t_med = which.min(abs(true_med - 0.5))
+      # print("mediation:")
+      # print(t_med)
+
       if (L$surv_time$surv_type == "Exponential") {
         t_plc = 19
         t_vac = 42
+        t_med = 19
       } else if (L$surv_time$surv_type == "Gompertz") {
         t_plc = 36
         t_vac = 44
+        t_med = 37
       }
       
       
@@ -87,19 +94,19 @@ run_on_cluster(
       # bootstrap to get the variance of true survival functions and estimators
       # surv_ci_plc = boot_ci(dat_phaseOne_plc, t_plc, "plc") # variance in placebo group
       # surv_ci_vac = boot_ci(dat_phaseTwo_vac, t_vac, "vac") # variance in vaccine group
-      surv_ci_med = boot_ci(dat_phaseTwo_vac, t_vac, "med") # variance in vaccine group
+      surv_ci_med = boot_ci(dat_phaseTwo_vac, t_med, "med") # variance in vaccine group
       
       # get the Survival probability at the specific time point
       # Q_true_plc = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, t_plc, dat_phaseOne, "plc", "math")
       # Q_true_vac = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, t_vac, dat_phaseOne_vac, "vac", "math")
-      Q_true_med = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, t_vac, dat_phaseOne_vac, "med", "math")
+      Q_true_med = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, t_med, dat_phaseOne_vac, "med", "math")
       
       # Q_est_km_plc = surv_km(t_plc, dat_phaseOne_plc, "plc") # km estimator for placebo group
       # Q_est_km_vac = surv_km(t_vac, dat_phaseTwo_vac, "vac") # km estimator for vaccine group
-      Q_est_km_med = surv_km(t_vac, dat_phaseTwo_vac, "med") # km estimator for mediation group
+      Q_est_km_med = surv_km(t_med, dat_phaseTwo_vac, "med") # km estimator for mediation group
       # Q_est_two_plc = surv_two(model_two_plc, t_plc, dat_phaseOne_plc, "plc")
       # Q_est_two_vac = surv_two(model_two_vac, t_vac, dat_phaseTwo_vac, "vac")
-      Q_est_two_med = surv_two(model_two_vac, t_vac, dat_phaseTwo_vac, "med")
+      Q_est_two_med = surv_two(model_two_vac, t_med, dat_phaseTwo_vac, "med")
       
       # get the true SE
       # se_est_km = se_km(t, dat_phaseOne)
