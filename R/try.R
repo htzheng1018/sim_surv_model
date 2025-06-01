@@ -37,7 +37,7 @@ run_on_cluster(
     sim = new_sim()
     
     sim %<>% set_levels(
-      n = 1000,
+      n = 4000,
       # n = c(500, 1000, 2000, 4000, 8000),
       surv_time = list(
         "Exp" = list(surv_type = "Exponential", surv_params = 2e-2),
@@ -84,7 +84,7 @@ run_on_cluster(
         t_vac = 42
         t_med = 19
       } else if (L$surv_time$surv_type == "Gompertz") {
-        t_plc = 36
+        t_plc = 37
         t_vac = 44
         t_med = 37
       }
@@ -102,8 +102,6 @@ run_on_cluster(
       # Q_true_med = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, t_med, dat_phaseOne_vac, "med", "math")
       
       Q_est_km_plc = surv_km(t_plc, dat_phaseOne_plc, "plc") # km estimator for placebo group
-      print(Q_est_km_plc)
-      print(L$surv_time$surv_type)
       # Q_est_km_vac = surv_km(t_vac, dat_phaseTwo_vac, "vac") # km estimator for vaccine group
       # Q_est_km_med = surv_km(t_med, dat_phaseTwo_vac, "med") # km estimator for mediation group
       Q_est_two_plc = surv_two(model_two_plc, t_plc, dat_phaseOne_plc, "plc")

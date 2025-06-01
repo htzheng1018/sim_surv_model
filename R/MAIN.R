@@ -85,7 +85,7 @@ run_on_cluster(
         t_vac = 42
         t_med = 19
       } else if (L$surv_time$surv_type == "Gompertz") {
-        t_plc = 36
+        t_plc = 37
         t_vac = 44
         t_med = 37
       }
