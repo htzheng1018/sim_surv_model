@@ -11,13 +11,13 @@ surv_true = function(surv_type, surv_params, t, data, type, integral) {
   
   if (integral == "sample") {
     if (type == "plc") {
-      unprop = 0.5*data$X1 + 0.7*data$X2 # no s in placebo group
+      unprop = exp(0.5*data$X1 + 0.7*data$X2) # no s in placebo group
     } else if (type == "vac") {
-      unprop = 0.5*data$X1 + 0.7*data$X2 - 2*data$S # have s in vaccine group
+      unprop = exp(0.5*data$X1 + 0.7*data$X2 - 2*data$S) # have s in vaccine group
     } else if (type == "med") {
-      unprop = 0.5*data$X1 + 0.7*data$X2 - 2*0 # s = 0 in mediation group
+      unprop = exp(0.5*data$X1 + 0.7*data$X2 - 2*0) # s = 0 in mediation group
     }
-    result = mean(Q_0 ^ (exp(unprop)))
+    result = mean(Q_0 ^ (unprop))
   } else if (integral == "math") {
     if (type == "plc") {
       integrand = function(u) {
