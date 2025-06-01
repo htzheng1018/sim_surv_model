@@ -37,7 +37,7 @@ run_on_cluster(
     sim = new_sim()
     
     sim %<>% set_levels(
-      n = 4000,
+      n = 1000,
       # n = c(500, 1000, 2000, 4000, 8000),
       surv_time = list(
         "Exp" = list(surv_type = "Exponential", surv_params = 2e-2),
