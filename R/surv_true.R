@@ -1,5 +1,5 @@
 # true survival function
-surv_true = function(surv_type, surv_params, t, data, type, integral) {
+surv_true = function(surv_type, surv_params, t, data, type, method) {
   if (surv_type == "Exponential") {
     lambda = surv_params
     Q_0 = exp(- lambda * t)
@@ -9,7 +9,7 @@ surv_true = function(surv_type, surv_params, t, data, type, integral) {
     Q_0 = exp((lambda/alpha) * (1 - exp(alpha*t)))
   }
   
-  if (integral == "sample") {
+  if (method == "sample") {
     if (type == "plc") {
       unprop = exp(0.5*data$X1 + 0.7*data$X2) # no s in placebo group
     } else if (type == "vac") {
@@ -18,7 +18,7 @@ surv_true = function(surv_type, surv_params, t, data, type, integral) {
       unprop = exp(0.5*data$X1 + 0.7*data$X2 - 2*0) # s = 0 in mediation group
     }
     result = mean(Q_0 ^ (unprop))
-  } else if (integral == "math") {
+  } else if (method == "math") {
     if (type == "plc") {
       integrand = function(u) {
         return(Q_0 ^ exp(u))

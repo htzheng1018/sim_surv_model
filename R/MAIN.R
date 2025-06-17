@@ -18,7 +18,7 @@
   source("R/surv_two.R", local = T)
   source("R/se_km.R", local = T)
   source("R/se_two.R", local = T)
-  source("R/boot_ci.R", local = T)
+  source("R/ci.R", local = T)
 }
 
 
@@ -93,9 +93,9 @@ run_on_cluster(
       
       
       # bootstrap to get the variance of true survival functions and estimators
-      surv_ci_plc = boot_ci(dat_phaseOne_plc, t_plc, "plc") # variance in placebo group
-      surv_ci_vac = boot_ci(dat_phaseTwo_vac, t_vac, "vac") # variance in vaccine group
-      surv_ci_med = boot_ci(dat_phaseTwo_vac, t_med, "med") # variance in vaccine group
+      ci_boot_plc = ci(dat_phaseOne_plc, t_plc, "plc") # variance in placebo group
+      ci_boot_vac = ci(dat_phaseTwo_vac, t_vac, "vac") # variance in vaccine group
+      ci_boot_med = ci(dat_phaseTwo_vac, t_med, "med") # variance in vaccine group
       
       # get the Survival probability at the specific time point
       Q_true_plc = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, t_plc, dat_phaseOne, "plc", "math")
@@ -133,37 +133,35 @@ run_on_cluster(
         "two_pctg_med" = (Q_est_two_med - Q_true_med) / Q_true_med * 100,
         
         # variance in placebo group
-        "km_plc_low" = surv_ci_plc$km_low,
-        "km_plc_up" = surv_ci_plc$km_up,
-        "se_km_plc_boot" = surv_ci_plc$km_se,
+        "km_plc_low" = ci_boot_plc$km_low,
+        "km_plc_up" = ci_boot_plc$km_up,
+        "se_km_plc_boot" = ci_boot_plc$km_se,
         # "se_km_est" = se_est_km,
-        "two_plc_low" = surv_ci_plc$two_low,
-        "two_plc_up" = surv_ci_plc$two_up,
-        "se_two_plc_boot" = surv_ci_plc$two_se,
+        "two_plc_low" = ci_boot_plc$two_low,
+        "two_plc_up" = ci_boot_plc$two_up,
+        "se_two_plc_boot" = ci_boot_plc$two_se,
         # "se_two_est" = se_est_two,
         
         # variance in vaccine group
-        "km_vac_low" = surv_ci_vac$km_low,
-        "km_vac_up" = surv_ci_vac$km_up,
-        "se_km_vac_boot" = surv_ci_vac$km_se,
+        "km_vac_low" = ci_boot_vac$km_low,
+        "km_vac_up" = ci_boot_vac$km_up,
+        "se_km_vac_boot" = ci_boot_vac$km_se,
         # "se_km_est" = se_est_km,
-        "two_vac_low" = surv_ci_vac$two_low,
-        "two_vac_up" = surv_ci_vac$two_up,
-        "se_two_vac_boot" = surv_ci_vac$two_se,
+        "two_vac_low" = ci_boot_vac$two_low,
+        "two_vac_up" = ci_boot_vac$two_up,
+        "se_two_vac_boot" = ci_boot_vac$two_se,
         # "se_two_est" = se_est_two,
         
         # variance in mediation group
-        "km_med_low" = surv_ci_med$km_low,
-        "km_med_up" = surv_ci_med$km_up,
-        "se_km_med_boot" = surv_ci_med$km_se,
+        "km_med_low" = ci_boot_med$km_low,
+        "km_med_up" = ci_boot_med$km_up,
+        "se_km_med_boot" = ci_boot_med$km_se,
         # "se_km_est" = se_est_km,
-        "two_med_low" = surv_ci_med$two_low,
-        "two_med_up" = surv_ci_med$two_up,
-        "se_two_med_boot" = surv_ci_med$two_se,
+        "two_med_low" = ci_boot_med$two_low,
+        "two_med_up" = ci_boot_med$two_up,
+        "se_two_med_boot" = ci_boot_med$two_se,
         # "se_two_est" = se_est_two,
         
-        # "se_km_pctg" = (surv_ci$km_se - se_est_km) / se_est_km * 100,
-        # "se_two_pctg" = (surv_ci$two_se - se_est_two) / se_est_two * 100,
         ".complex" = list(
           "model_plc" = model_two_plc,
           "model_vac" = model_two_vac,
@@ -171,7 +169,6 @@ run_on_cluster(
           "data_plc" = dat_phaseOne_plc,
           "data_vac" = dat_phaseTwo_vac,
           "data_med" = dat_phaseTwo_vac
-          # "ci" = surv_ci
         )
       ))
     })
