@@ -8,7 +8,7 @@
 ################
 #### set up ####
 ################
-# have a try
+
 # load SimEngine + functions
 {
   library(SimEngine)
