@@ -37,7 +37,7 @@ run_on_cluster(
     sim = new_sim()
     
     sim %<>% set_levels(
-      n = 1000,
+      n = c(1000, 2000),
       # n = c(500, 1000, 2000, 4000, 8000),
       surv_time = list(
         "Exp" = list(surv_type = "Exponential", surv_params = 2e-2),
@@ -45,7 +45,7 @@ run_on_cluster(
       )
     )
     
-    sim %<>% set_config(num_sim = 1000, n_cores = 4, seed = 1018,
+    sim %<>% set_config(num_sim = 100, n_cores = 4, seed = 1018,
                         packages = c("survival", "parallel", "truncnorm", "devtools", "ipw", "pracma")
     )
     
@@ -56,7 +56,8 @@ run_on_cluster(
       dat_phaseOne_plc = dat_phaseOne[dat_phaseOne$treat == 0, ] # treat = 0 in placebo group
       dat_phaseOne_vac = dat_phaseOne[dat_phaseOne$treat == 1, ] # treat = 1 in vaccine group
       model_two_plc = coxph(Surv(Y, delta) ~ X1 + X2, data = dat_phaseOne_plc) # no s in placebo group
-      model_two_vac = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_phaseTwo_vac, weights = ipw) # s in vaccine group
+      # model_two_vac = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_phaseTwo_vac, weights = ipw) # s in vaccine group
+      model_two_vac = coxph(Surv(Y, delta) ~ X1 + X2 + S + I(S == 0), data = dat_phaseTwo_vac, weights = ipw) # refined model
       
       
       
@@ -107,7 +108,7 @@ run_on_cluster(
       Q_est_two_plc = surv_two(model_two_plc, t_plc, dat_phaseOne_plc, "plc")
       Q_est_two_vac = surv_two(model_two_vac, t_vac, dat_phaseTwo_vac, "vac")
       Q_est_two_med = surv_two(model_two_vac, t_med, dat_phaseTwo_vac, "med")
-      
+
       # get the true SE
       # se_est_km = se_km(t, dat_phaseOne)
       # se_est_two = se_two(t, dat_phaseOne)
@@ -270,7 +271,5 @@ saveRDS(coverage_two, file = "Evaluation/coverage_two.rds")
 end_time = Sys.time()
 execution_time = end_time - start_time
 print(execution_time)
-
-
 
 

@@ -37,8 +37,8 @@ run_on_cluster(
     sim = new_sim()
     
     sim %<>% set_levels(
-      # n = 1000,
-      n = c(500, 1000, 2000, 4000, 8000),
+      n = c(1000, 2000),
+      # n = c(500, 1000, 2000, 4000, 8000),
       surv_time = list(
         "Exp" = list(surv_type = "Exponential", surv_params = 2e-2),
         "Gom" = list(surv_type = "Gompertz", surv_params = c(0.1, 1e-3))
@@ -93,9 +93,9 @@ run_on_cluster(
       
       
       # bootstrap to get the variance of true survival functions and estimators
-      ci_boot_plc = ci(dat_phaseOne_plc, t_plc, "plc") # variance in placebo group
-      ci_boot_vac = ci(dat_phaseTwo_vac, t_vac, "vac") # variance in vaccine group
-      ci_boot_med = ci(dat_phaseTwo_vac, t_med, "med") # variance in vaccine group
+      ci_boot_plc = ci(dat_phaseOne_plc, t_plc, "plc", "bootstrap") # variance in placebo group
+      ci_boot_vac = ci(dat_phaseTwo_vac, t_vac, "vac", "bootstrap") # variance in vaccine group
+      ci_boot_med = ci(dat_phaseTwo_vac, t_med, "med", "bootstrap") # variance in vaccine group
       
       # get the Survival probability at the specific time point
       Q_true_plc = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, t_plc, dat_phaseOne, "plc", "math")
