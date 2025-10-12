@@ -2,7 +2,7 @@
 ci = function(data, t, type, method) {
   if (method == "bootstrap") {
     nn = nrow(data)
-    R = 100
+    R = 1000
     surv_km.boot = c()
     surv_two.boot = c()
     
