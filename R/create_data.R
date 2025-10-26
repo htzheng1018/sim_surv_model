@@ -1,4 +1,4 @@
-create_data = function(n, surv_type, surv_params, sample_type) {
+create_data = function(n, surv_type, surv_params, sample_type, ind = FALSE) {
   # id
   id = seq(1, n)
   
@@ -20,13 +20,18 @@ create_data = function(n, surv_type, surv_params, sample_type) {
   
   # survival time
   U = runif(n = n)
+  if (ind == "TRUE") {
+    V = 0.5*X1 + 0.7*X2 - 2*S - 0.5*I(S == 0)
+  } else {
+    V = 0.5*X1 + 0.7*X2 - 2*S
+  }
   if (surv_type == "Exponential") {
     lambda = surv_params
-    t = -log(U) / (lambda * exp(0.5*X1 + 0.7*X2 - 2*S))
+    t = -log(U) / (lambda * exp(V))
   } else if (surv_type == "Gompertz") {
     alpha = surv_params[1]
     lambda = surv_params[2]
-    t = 1/alpha * log(1 - (alpha * log(U)) / (lambda * exp(0.5*X1 + 0.7*X2 - 2*S)))
+    t = 1/alpha * log(1 - (alpha * log(U)) / (lambda * exp(V)))
   }
   
   # censored time

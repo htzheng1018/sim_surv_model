@@ -1,8 +1,8 @@
 # Bootstrap function (true survival function and estimators)
-ci = function(data, t, type, method) {
+ci = function(data, t, type, method, ind = FALSE) {
   if (method == "bootstrap") {
     nn = nrow(data)
-    R = 1000
+    R = 100
     surv_km.boot = c()
     surv_two.boot = c()
     
@@ -12,23 +12,31 @@ ci = function(data, t, type, method) {
         data.boot = data[boot.samp, ]
         model.boot = coxph(Surv(Y, delta) ~ X1 + X2, data = data.boot)
         surv_km.boot[r] = surv_km(t, data.boot, type)
-        surv_two.boot[r] = surv_two(model.boot, t, data, type)
+        surv_two.boot[r] = surv_two(model.boot, t, data, type, ind)
       }
     } else if (type == "vac") {
       for (r in 1: R) {
         boot.samp = sample(1: nn, size = nn, replace = TRUE)
         data.boot = data[boot.samp, ]
-        model.boot = coxph(Surv(Y, delta) ~ X1 + X2 + S + I(S == 0), data = data.boot, weights = ipw)
+        if (ind == TRUE) {
+          model.boot = coxph(Surv(Y, delta) ~ X1 + X2 + S + I(S == 0), data = data.boot, weights = ipw)
+        } else {
+          model.boot = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = data.boot, weights = ipw)
+        }
         surv_km.boot[r] = surv_km(t, data.boot, type)
-        surv_two.boot[r] = surv_two(model.boot, t, data, type)
+        surv_two.boot[r] = surv_two(model.boot, t, data.boot, type, ind)
       }
     } else if (type == "med") {
       for (r in 1: R) {
         boot.samp = sample(1: nn, size = nn, replace = TRUE)
         data.boot = data[boot.samp, ]
-        model.boot = coxph(Surv(Y, delta) ~ X1 + X2 + S + I(S == 0), data = data.boot, weights = ipw)
+        if (ind == TRUE) {
+          model.boot = coxph(Surv(Y, delta) ~ X1 + X2 + S + I(S == 0), data = data.boot, weights = ipw)
+        } else {
+          model.boot = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = data.boot, weights = ipw)
+        }
         surv_km.boot[r] = surv_km(t, data.boot, type)
-        surv_two.boot[r] = surv_two(model.boot, t, data, type)
+        surv_two.boot[r] = surv_two(model.boot, t, data.boot, type, ind)
       }
     }
   } else if (method == "math") {
