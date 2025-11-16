@@ -37,7 +37,7 @@ run_on_cluster(
     sim = new_sim()
     
     sim %<>% set_levels(
-      n = c(1000, 2000),
+      n = c(500, 1000, 2000, 4000),
       # n = c(500, 1000, 2000, 4000, 8000),
       surv_time = list(
         "Exp" = list(surv_type = "Exponential", surv_params = 2e-2),
@@ -123,9 +123,9 @@ run_on_cluster(
       ci_boot_med_plus = ci(dat_phaseTwo_vac, t_med, "med", "bootstrap", ind = T)
       
       # variance in biomarker indicator data with biomarker indicator model
-      ci_boot_plc_pro = ci(dat_phaseOne_plc_pro, t_plc, "plc", "bootstrap", ind = T)
-      ci_boot_vac_pro = ci(dat_phaseTwo_vac_pro, t_vac, "vac", "bootstrap", ind = T)
-      ci_boot_med_pro = ci(dat_phaseTwo_vac_pro, t_med, "med", "bootstrap", ind = T)
+      ci_boot_plc_pro = ci(dat_phaseOne_plc_pro, t_plc_pro, "plc", "bootstrap", ind = T)
+      ci_boot_vac_pro = ci(dat_phaseTwo_vac_pro, t_vac_pro, "vac", "bootstrap", ind = T)
+      ci_boot_med_pro = ci(dat_phaseTwo_vac_pro, t_med_pro, "med", "bootstrap", ind = T)
       
       
       

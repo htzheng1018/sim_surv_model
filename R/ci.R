@@ -2,7 +2,7 @@
 ci = function(data, t, type, method, ind = FALSE) {
   if (method == "bootstrap") {
     nn = nrow(data)
-    R = 100
+    R = 1000
     surv_km.boot = c()
     surv_two.boot = c()
     
@@ -12,7 +12,7 @@ ci = function(data, t, type, method, ind = FALSE) {
         data.boot = data[boot.samp, ]
         model.boot = coxph(Surv(Y, delta) ~ X1 + X2, data = data.boot)
         surv_km.boot[r] = surv_km(t, data.boot, type)
-        surv_two.boot[r] = surv_two(model.boot, t, data, type, ind)
+        surv_two.boot[r] = surv_two(model.boot, t, data.boot, type, ind)
       }
     } else if (type == "vac") {
       for (r in 1: R) {
