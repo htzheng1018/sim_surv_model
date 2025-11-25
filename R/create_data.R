@@ -21,7 +21,7 @@ create_data = function(n, surv_type, surv_params, sample_type, ind = FALSE) {
   # survival time
   U = runif(n = n)
   if (ind == "TRUE") {
-    V = 0.5*X1 + 0.7*X2 - 2*S - 0.5*I(S == 0)
+    V = 0.5*X1 + 0.7*X2 - 2*S - 0.5*I(S == 0)*treat # add treat to ensure no S in the placebo group
   } else {
     V = 0.5*X1 + 0.7*X2 - 2*S
   }
