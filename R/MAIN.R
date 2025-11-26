@@ -266,7 +266,7 @@ run_on_cluster(
         
         ".complex" = list(
           "model_plc" = model_two_plc,
-          "model_plc+pro" = model_two_plc_pro,
+          "model_plc_pro" = model_two_plc_pro,
           "model_vac" = model_two_vac,
           "model_vac_plus" = model_two_vac_plus,
           "model_vac_pro" = model_two_vac_pro,
