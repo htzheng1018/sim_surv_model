@@ -13,3 +13,7 @@ kable(coverage_two, format = "latex", booktabs = TRUE, longtable = FALSE) %>%
 kable(coverage_km, format = "latex", booktabs = TRUE, longtable = FALSE) %>%
   save_kable("/Users/gjp731/Desktop/research/Avi_Kenny/results/coverage_km.tex")
 
+kable(var_two, format = "latex", booktabs = TRUE, longtable = FALSE) %>%
+  save_kable("/Users/gjp731/Desktop/research/Avi_Kenny/results/var_two.tex")
+kable(var_km, format = "latex", booktabs = TRUE, longtable = FALSE) %>%
+  save_kable("/Users/gjp731/Desktop/research/Avi_Kenny/results/var_km.tex")

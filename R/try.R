@@ -12,6 +12,7 @@
 # load SimEngine + functions
 {
   library(SimEngine)
+  library(kableExtra)
   source("R/create_data.R", local = T)
   source("R/surv_true.R", local = T)
   source("R/surv_km.R", local = T)
@@ -27,8 +28,7 @@
 #### MAIN ####
 ##############
 
-# start time
-start_time = Sys.time()
+
 
 # set up multi-cores
 run_on_cluster(
@@ -37,15 +37,15 @@ run_on_cluster(
     sim = new_sim()
     
     sim %<>% set_levels(
-      n = c(500, 1000),
       # n = c(500, 1000, 2000, 4000, 8000),
+      n = c(500, 1000),
       surv_time = list(
         "Exp" = list(surv_type = "Exponential", surv_params = 2e-2),
         "Gom" = list(surv_type = "Gompertz", surv_params = c(0.1, 1e-3))
       )
     )
     
-    sim %<>% set_config(num_sim = 100, n_cores = 4, seed = 1018,
+    sim %<>% set_config(num_sim = 1000, n_cores = 4, seed = 1018,
                         packages = c("survival", "parallel", "truncnorm", "devtools", "ipw", "pracma")
     )
     
@@ -219,43 +219,56 @@ run_on_cluster(
         "km_plc_low" = ci_boot_plc$km_low,
         "km_plc_up" = ci_boot_plc$km_up,
         "se_km_plc_boot" = ci_boot_plc$km_se,
+        "var_km_plc_boot" = ci_boot_plc$km_se ^ 2,
         "km_vac_low" = ci_boot_vac$km_low,
         "km_vac_up" = ci_boot_vac$km_up,
         "se_km_vac_boot" = ci_boot_vac$km_se,
+        "var_km_vac_boot" = ci_boot_vac$km_se ^ 2,
         "km_plc_low_pro" = ci_boot_plc_pro$km_low,
         "km_plc_up_pro" = ci_boot_plc_pro$km_up,
         "se_km_plc_boot_pro" = ci_boot_plc_pro$km_se,
+        "var_km_plc_boot_pro" = ci_boot_plc_pro$km_se ^ 2,
         "km_vac_low_pro" = ci_boot_vac_pro$km_low,
         "km_vac_up_pro" = ci_boot_vac_pro$km_up,
         "se_km_vac_boot_pro" = ci_boot_vac_pro$km_se,
+        "var_km_vac_boot_pro" = ci_boot_vac_pro$km_se ^ 2,
         # two-phase sampling
         "two_plc_low" = ci_boot_plc$two_low,
         "two_plc_up" = ci_boot_plc$two_up,
         "se_two_plc_boot" = ci_boot_plc$two_se,
+        "var_two_plc_boot" = ci_boot_plc$two_se ^ 2,
         "two_plc_low_plus" = ci_boot_plc_plus$two_low,
         "two_plc_up_plus" = ci_boot_plc_plus$two_up,
         "se_two_plc_boot_plus" = ci_boot_plc_plus$two_se,
+        "var_two_plc_boot_plus" = ci_boot_plc_plus$two_se ^ 2,
         "two_plc_low_pro" = ci_boot_plc_pro$two_low,
         "two_plc_up_pro" = ci_boot_plc_pro$two_up,
         "se_two_plc_boot_pro" = ci_boot_plc_pro$two_se,
+        "var_two_plc_boot_pro" = ci_boot_plc_pro$two_se ^ 2,
         "two_vac_low" = ci_boot_vac$two_low,
         "two_vac_up" = ci_boot_vac$two_up,
         "se_two_vac_boot" = ci_boot_vac$two_se,
+        "var_two_vac_boot" = ci_boot_vac$two_se ^ 2,
         "two_vac_low_plus" = ci_boot_vac_plus$two_low,
         "two_vac_up_plus" = ci_boot_vac_plus$two_up,
         "se_two_vac_boot_plus" = ci_boot_vac_plus$two_se,
+        "var_two_vac_boot_plus" = ci_boot_vac_plus$two_se ^ 2,
         "two_vac_low_pro" = ci_boot_vac_pro$two_low,
         "two_vac_up_pro" = ci_boot_vac_pro$two_up,
         "se_two_vac_boot_pro" = ci_boot_vac_pro$two_se,
+        "var_two_vac_boot_pro" = ci_boot_vac_pro$two_se ^ 2,
         "two_med_low" = ci_boot_med$two_low,
         "two_med_up" = ci_boot_med$two_up,
         "se_two_med_boot" = ci_boot_med$two_se,
+        "var_two_med_boot" = ci_boot_med$two_se ^ 2,
         "two_med_low_plus" = ci_boot_med_plus$two_low,
         "two_med_up_plus" = ci_boot_med_plus$two_up,
         "se_two_med_boot_plus" = ci_boot_med_plus$two_se,
+        "var_two_med_boot_plus" = ci_boot_med_plus$two_se ^ 2,
         "two_med_low_pro" = ci_boot_med_pro$two_low,
         "two_med_up_pro" = ci_boot_med_pro$two_up,
         "se_two_med_boot_pro" = ci_boot_med_pro$two_se,
+        "var_two_med_boot_pro" = ci_boot_med_pro$two_se ^ 2,
         
         # "se_km_est" = se_est_km,
         # "se_two_est" = se_est_two,
@@ -266,7 +279,7 @@ run_on_cluster(
         
         ".complex" = list(
           "model_plc" = model_two_plc,
-          "model_plc+pro" = model_two_plc_pro,
+          "model_plc_pro" = model_two_plc_pro,
           "model_vac" = model_two_vac,
           "model_vac_plus" = model_two_vac_plus,
           "model_vac_pro" = model_two_vac_pro,
@@ -285,7 +298,6 @@ run_on_cluster(
   },
   
   last = {
-    
     # mean
     Q_true = sim %>% SimEngine::summarize(
       list(stat = "mean", x = "Q_true_plc"),
@@ -356,19 +368,24 @@ run_on_cluster(
       list(stat = "mean", x = "two_pctg_med_pro", name = "bias_twophase_pct_med_pro")
     )
     
-    # SE accuracy
-    # accuracy_se_km = sim %>% SimEngine::summarize(
-    #   list(stat = "mean", x = "se_km_plc_boot", name = "se_km_plc"),
-    #   list(stat = "mean", x = "se_km_vac_boot", name = "se_km_vac"),
-    # list(stat = "mean", x = "se_km_pctg", name = "se_bias_km_pct"),
-    # list(stat = "mean", x = "se_km_pctg", name = "se_bias_km_pct")
-    # )
-    # accuracy_se_two = sim %>% SimEngine::summarize(
-    #   list(stat = "mean", x = "se_two_plc_boot", name = "se_two_plc"),
-    #   list(stat = "mean", x = "se_two_vac_boot", name = "se_two_vac"),
-    # list(stat = "mean", x = "se_two_pctg", name = "se_bias_two_pct"),
-    # list(stat = "mean", x = "se_two_pctg", name = "se_bias_two_pct")
-    # )
+    # variance in average
+    var_km = sim %>% SimEngine::summarize(
+      list(stat = "mean", x = "var_km_plc_boot", name = "var_km_plc_boot"),
+      list(stat = "mean", x = "var_km_vac_boot", name = "var_km_vac_boot"),
+      list(stat = "mean", x = "var_km_plc_boot_pro", name = "var_km_plc_boot_pro"),
+      list(stat = "mean", x = "var_km_vac_boot_pro", name = "var_km_vac_boot_pro")
+    )
+    var_two = sim %>% SimEngine::summarize(
+      list(stat = "mean", x = "var_two_plc_boot", name = "var_two_plc_boot"),
+      list(stat = "mean", x = "var_two_plc_boot_plus", name = "var_two_plc_boot_plus"),
+      list(stat = "mean", x = "var_two_plc_boot_pro", name = "var_two_plc_boot_pro"),
+      list(stat = "mean", x = "var_two_vac_boot", name = "var_two_vac_boot"),
+      list(stat = "mean", x = "var_two_vac_boot_plus", name = "var_two_vac_boot_plus"),
+      list(stat = "mean", x = "var_two_vac_boot_pro", name = "var_two_vac_boot_pro"),
+      list(stat = "mean", x = "var_two_med_boot", name = "var_two_med_boot"),
+      list(stat = "mean", x = "var_two_med_boot_plus", name = "var_two_med_boot_plus"),
+      list(stat = "mean", x = "var_two_med_boot_pro", name = "var_two_med_boot_pro")
+    )
     
     # coverage
     coverage_km = sim %>% SimEngine::summarize(
@@ -392,14 +409,6 @@ run_on_cluster(
   
   cluster_config = list(js = "slurm")
 )
-
-
-
-
-# end time
-end_time = Sys.time()
-execution_time = end_time - start_time
-print(execution_time)
 
 
 
