@@ -377,13 +377,13 @@ run_on_cluster(
     )
     var_two = sim %>% SimEngine::summarize(
       list(stat = "mean", x = "var_two_plc_boot", name = "var_two_plc_boot"),
-      list(stat = "mean", x = "var_two_plc_boot_plus", name = "var_two_plc_boot_plus"),
-      list(stat = "mean", x = "var_two_plc_boot_pro", name = "var_two_plc_boot_pro"),
       list(stat = "mean", x = "var_two_vac_boot", name = "var_two_vac_boot"),
-      list(stat = "mean", x = "var_two_vac_boot_plus", name = "var_two_vac_boot_plus"),
-      list(stat = "mean", x = "var_two_vac_boot_pro", name = "var_two_vac_boot_pro"),
       list(stat = "mean", x = "var_two_med_boot", name = "var_two_med_boot"),
+      list(stat = "mean", x = "var_two_plc_boot_plus", name = "var_two_plc_boot_plus"),
+      list(stat = "mean", x = "var_two_vac_boot_plus", name = "var_two_vac_boot_plus"),
       list(stat = "mean", x = "var_two_med_boot_plus", name = "var_two_med_boot_plus"),
+      list(stat = "mean", x = "var_two_plc_boot_pro", name = "var_two_plc_boot_pro"),
+      list(stat = "mean", x = "var_two_vac_boot_pro", name = "var_two_vac_boot_pro"),
       list(stat = "mean", x = "var_two_med_boot_pro", name = "var_two_med_boot_pro")
     )
     
