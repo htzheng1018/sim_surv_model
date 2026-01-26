@@ -1,7 +1,7 @@
 # SE for two-sphase sampling
 se_two = function(t, data) {
   nn = nrow(data)
-  R = 100
+  R = 1000
   surv_two.boot = c()
   
   for (r in 1: R) {

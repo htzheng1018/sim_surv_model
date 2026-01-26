@@ -28,7 +28,8 @@
 #### MAIN ####
 ##############
 
-
+# start time
+start_time = Sys.time()
 
 # set up multi-cores
 run_on_cluster(
@@ -37,8 +38,8 @@ run_on_cluster(
     sim = new_sim()
     
     sim %<>% set_levels(
-      # n = c(500, 1000, 2000, 4000, 8000),
       n = c(500, 1000),
+      # n = c(500, 1000, 2000, 4000, 8000),
       surv_time = list(
         "Exp" = list(surv_type = "Exponential", surv_params = 2e-2),
         "Gom" = list(surv_type = "Gompertz", surv_params = c(0.1, 1e-3))
@@ -377,13 +378,13 @@ run_on_cluster(
     )
     var_two = sim %>% SimEngine::summarize(
       list(stat = "mean", x = "var_two_plc_boot", name = "var_two_plc_boot"),
-      list(stat = "mean", x = "var_two_plc_boot_plus", name = "var_two_plc_boot_plus"),
-      list(stat = "mean", x = "var_two_plc_boot_pro", name = "var_two_plc_boot_pro"),
       list(stat = "mean", x = "var_two_vac_boot", name = "var_two_vac_boot"),
-      list(stat = "mean", x = "var_two_vac_boot_plus", name = "var_two_vac_boot_plus"),
-      list(stat = "mean", x = "var_two_vac_boot_pro", name = "var_two_vac_boot_pro"),
       list(stat = "mean", x = "var_two_med_boot", name = "var_two_med_boot"),
+      list(stat = "mean", x = "var_two_plc_boot_plus", name = "var_two_plc_boot_plus"),
+      list(stat = "mean", x = "var_two_vac_boot_plus", name = "var_two_vac_boot_plus"),
       list(stat = "mean", x = "var_two_med_boot_plus", name = "var_two_med_boot_plus"),
+      list(stat = "mean", x = "var_two_plc_boot_pro", name = "var_two_plc_boot_pro"),
+      list(stat = "mean", x = "var_two_vac_boot_pro", name = "var_two_vac_boot_pro"),
       list(stat = "mean", x = "var_two_med_boot_pro", name = "var_two_med_boot_pro")
     )
     
@@ -409,6 +410,14 @@ run_on_cluster(
   
   cluster_config = list(js = "slurm")
 )
+
+
+
+# end time
+end_time = Sys.time()
+execution_time = end_time - start_time
+print(execution_time)
+
 
 
 
