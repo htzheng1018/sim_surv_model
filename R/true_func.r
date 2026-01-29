@@ -1,10 +1,12 @@
 
 
 
-true_func = function(surv_type, surv_params, t, data, method, ind = FALSE) {
+true_func = function(surv_type, surv_params, t, dat, method, ind = FALSE) {
   if (ind == TRUE) {
-    data$`I(S == 0)TRUE` = ifelse(data$S == 0, 1, 0)
+    dat$`I(S == 0)TRUE` = ifelse(dat$S == 0, 1, 0)
   }
+  dat_plc = dat[dat$treat == 0, ]
+  dat_vac = dat[dat$Z == 1 & dat$treat == 1, ]
   
   if (surv_type == "Exponential") {
     lambda = surv_params
@@ -17,17 +19,25 @@ true_func = function(surv_type, surv_params, t, data, method, ind = FALSE) {
   
   if (method == "sample") {
     if (ind == TRUE) {
-      unprop_plc = exp(0.5*data$X1 + 0.7*data$X2)
-      unprop_vac = exp(0.5*data$X1 + 0.7*data$X2 - 2*data$S - 0.5*data$`I(S == 0)TRUE`)
-      unprop_med = exp(0.5*data$X1 + 0.7*data$X2 - 2*0 - 0.5*1)
-    } else {
-      unprop_plc = exp(0.5*data$X1 + 0.7*data$X2)
-      unprop_vac = exp(0.5*data$X1 + 0.7*data$X2 - 2*data$S)
-      unprop_med = exp(0.5*data$X1 + 0.7*data$X2 - 2*0)
+      unprop_plc = exp(0.5*dat_plc$X1 + 0.7*dat_plc$X2)
+      unprop_vac = exp(0.5*dat_vac$X1 + 0.7*dat_vac$X2 - 2*dat_vac$S - 0.5*dat_vac$`I(S == 0)TRUE`)
+      unprop_med = exp(0.5*dat_vac$X1 + 0.7*dat_vac$X2 - 2*0 - 0.5*1)
+    } else if (ind == FALSE) {
+      unprop_plc = exp(0.5*dat_plc$X1 + 0.7*dat_plc$X2)
+      unprop_vac = exp(0.5*dat_vac$X1 + 0.7*dat_vac$X2 - 2*dat_vac$S)
+      unprop_med = exp(0.5*dat_vac$X1 + 0.7*dat_vac$X2 - 2*0)
     }
-    r_p = 1 - mean(Q_0 ^ (unprop_plc))
-    r_v = 1 - mean(Q_0 ^ (unprop_vac))
-    r_m = 1 - mean(Q_0 ^ (unprop_med))
+    # placebo group
+    Q_p = mean(Q_0 ^ (unprop_plc))
+    r_p = 1 - Q_p
+    # vaccine group
+    Q = Q_0 ^ (unprop_vac)
+    Q_v = sum(Q * dat_vac$ipw) / sum(dat_vac$ipw)
+    r_v = 1 - Q_v
+    # mediation group
+    Q = Q_0 ^ (unprop_med)
+    Q_m = sum(Q * dat_vac$ipw) / sum(dat_vac$ipw)
+    r_m = 1 - Q_m
     
     NIE = r_v / r_m
     NDE = r_m / r_p
