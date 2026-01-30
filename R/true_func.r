@@ -41,7 +41,7 @@ true_func = function(surv_type, surv_params, t, dat, method, ind = FALSE) {
     
     NIE = r_v / r_m
     NDE = r_m / r_p
-    lambda = 1 - log(NDE) / (log(NIE) + log(NDE))
+    PM = 1 - log(NDE) / (log(NIE) + log(NDE))
   } else if (method == "math") {
     # placebo group
     integrand = function(u) {
@@ -122,12 +122,12 @@ true_func = function(surv_type, surv_params, t, dat, method, ind = FALSE) {
     
     NIE = r_v / r_m
     NDE = r_m / r_p
-    lambda = 1 - log(NDE) / (log(NIE) + log(NDE))
+    PM = 1 - log(NDE) / (log(NIE) + log(NDE))
   }
   
   result = data.frame(
-    true = c(NIE, NDE, lambda)
+    true = c(NIE, NDE, PM)
   )
-  rownames(result) = c("NIE", "NDE", "Proportion Mediated")
+  rownames(result) = c("NIE", "NDE", "PM")
   return(result)
 }
