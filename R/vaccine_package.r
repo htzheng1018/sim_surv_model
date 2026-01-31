@@ -30,7 +30,6 @@ run_on_cluster(
     
     sim %<>% set_levels(
       n = c(500, 1000, 2000, 4000, 8000),
-      # n = c(500, 1000),
       surv_time = list(
         "Exp" = list(surv_type = "Exponential", surv_params = 2e-2),
         "Gom" = list(surv_type = "Gompertz", surv_params = c(0.1, 1e-3))
@@ -60,10 +59,10 @@ run_on_cluster(
       val_0_ind = true_func(L$surv_time$surv_type, L$surv_time$surv_params, t_ind, dat_ind, "math", ind = T)
       
       # two-phase sampling estimator and flexible estimator
-      val_n_tps_org = est_tps(dat_org, t_org, boots = 1000)
-      val_n_tps_ind = est_tps(dat_ind, t_ind, boots = 1000)
-      val_n_flx_org = est_flx(dat_org, t_org, boots = 1000)
-      val_n_flx_ind = est_flx(dat_ind, t_ind, boots = 1000)
+      val_n_tps_org = est_tps(dat_org, t_org)
+      val_n_tps_ind = est_tps(dat_ind, t_ind)
+      val_n_flx_org = est_flx(dat_org, t_org)
+      val_n_flx_ind = est_flx(dat_ind, t_ind)
       
       # results
       return(list(
