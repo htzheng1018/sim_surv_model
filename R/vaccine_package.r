@@ -29,15 +29,15 @@ run_on_cluster(
     sim = new_sim()
     
     sim %<>% set_levels(
-      # n = c(500, 1000, 2000, 4000, 8000),
-      n = c(500, 1000),
+      n = c(500, 1000, 2000, 4000, 8000),
+      # n = c(500, 1000),
       surv_time = list(
         "Exp" = list(surv_type = "Exponential", surv_params = 2e-2),
         "Gom" = list(surv_type = "Gompertz", surv_params = c(0.1, 1e-3))
       )
     )
     
-    sim %<>% set_config(num_sim = 100, n_cores = 13, seed = 1018,
+    sim %<>% set_config(num_sim = 1000, n_cores = 13, seed = 1018,
                         packages = c("survival", "parallel", "truncnorm", "devtools", "ipw", "pracma")
     )
     
@@ -60,10 +60,10 @@ run_on_cluster(
       val_0_ind = true_func(L$surv_time$surv_type, L$surv_time$surv_params, t_ind, dat_ind, "math", ind = T)
       
       # two-phase sampling estimator and flexible estimator
-      val_n_tps_org = est_tps(dat_org, t_org, boots = 100)
-      val_n_tps_ind = est_tps(dat_ind, t_ind, boots = 100)
-      val_n_flx_org = est_flx(dat_org, t_org, boots = 100)
-      val_n_flx_ind = est_flx(dat_ind, t_ind, boots = 100)
+      val_n_tps_org = est_tps(dat_org, t_org, boots = 1000)
+      val_n_tps_ind = est_tps(dat_ind, t_ind, boots = 1000)
+      val_n_flx_org = est_flx(dat_org, t_org, boots = 1000)
+      val_n_flx_ind = est_flx(dat_ind, t_ind, boots = 1000)
       
       # results
       return(list(
@@ -110,12 +110,12 @@ run_on_cluster(
         "NDE_bias_tps_ind" = (val_n_tps_ind["NDE", "estimate"] - val_0_ind["NDE", "true"]) / val_0_ind["NDE", "true"] * 100,
         "PM_bias_tps_org" = (val_n_tps_org["PM", "estimate"] - val_0_org["PM", "true"]) / val_0_org["PM", "true"] * 100,
         "PM_bias_tps_ind" = (val_n_tps_ind["PM", "estimate"] - val_0_ind["PM", "true"]) / val_0_ind["PM", "true"] * 100,
-        "NIE_bias_flx_org" = (val_n_flx_org["NIE", "se"] - val_0_org["NIE", "true"]) / val_0_org["NIE", "true"] * 100,
-        "NIE_bias_flx_ind" = (val_n_flx_ind["NIE", "se"] - val_0_ind["NIE", "true"]) / val_0_ind["NIE", "true"] * 100,
-        "NDE_bias_flx_org" = (val_n_flx_org["NDE", "se"] - val_0_org["NDE", "true"]) / val_0_org["NDE", "true"] * 100,
-        "NDE_bias_flx_ind" = (val_n_flx_ind["NDE", "se"] - val_0_ind["NDE", "true"]) / val_0_ind["NDE", "true"] * 100,
-        "PM_bias_flx_org" = (val_n_flx_org["PM", "se"] - val_0_org["PM", "true"]) / val_0_org["PM", "true"] * 100,
-        "PM_bias_flx_ind" = (val_n_flx_ind["PM", "se"] - val_0_ind["PM", "true"]) / val_0_ind["PM", "true"] * 100,
+        "NIE_bias_flx_org" = (val_n_flx_org["NIE", "estimate"] - val_0_org["NIE", "true"]) / val_0_org["NIE", "true"] * 100,
+        "NIE_bias_flx_ind" = (val_n_flx_ind["NIE", "estimate"] - val_0_ind["NIE", "true"]) / val_0_ind["NIE", "true"] * 100,
+        "NDE_bias_flx_org" = (val_n_flx_org["NDE", "estimate"] - val_0_org["NDE", "true"]) / val_0_org["NDE", "true"] * 100,
+        "NDE_bias_flx_ind" = (val_n_flx_ind["NDE", "estimate"] - val_0_ind["NDE", "true"]) / val_0_ind["NDE", "true"] * 100,
+        "PM_bias_flx_org" = (val_n_flx_org["PM", "estimate"] - val_0_org["PM", "true"]) / val_0_org["PM", "true"] * 100,
+        "PM_bias_flx_ind" = (val_n_flx_ind["PM", "estimate"] - val_0_ind["PM", "true"]) / val_0_ind["PM", "true"] * 100,
         
         # 95% CI
         "NIE_low_tps_org" = val_n_tps_org["NIE", "low"],
@@ -206,18 +206,18 @@ run_on_cluster(
     
     # bias
     bias = sim %>% SimEngine::summarize(
-      list(stat = "bias", estimate = "NIE_n_tps_org", truth = "NIE_0_tps_org", name = "bias_NIE_tps_org"),
-      list(stat = "bias", estimate = "NIE_n_tps_ind", truth = "NIE_0_tps_ind", name = "bias_NIE_tps_ind"),
-      list(stat = "bias", estimate = "NDE_n_tps_org", truth = "NDE_0_tps_org", name = "bias_NDE_tps_org"),
-      list(stat = "bias", estimate = "NDE_n_tps_ind", truth = "NDE_0_tps_ind", name = "bias_NDE_tps_ind"),
-      list(stat = "bias", estimate = "PM_n_tps_org", truth = "PM_0_tps_org", name = "bias_PM_tps_org"),
-      list(stat = "bias", estimate = "PM_n_tps_ind", truth = "PM_0_tps_ind", name = "bias_PM_tps_ind"),
-      list(stat = "bias", estimate = "NIE_n_flx_org", truth = "NIE_0_flx_org", name = "bias_NIE_flx_org"),
-      list(stat = "bias", estimate = "NIE_n_flx_ind", truth = "NIE_0_flx_ind", name = "bias_NIE_flx_ind"),
-      list(stat = "bias", estimate = "NDE_n_flx_org", truth = "NDE_0_flx_org", name = "bias_NDE_flx_org"),
-      list(stat = "bias", estimate = "NDE_n_flx_ind", truth = "NDE_0_flx_ind", name = "bias_NDE_flx_ind"),
-      list(stat = "bias", estimate = "PM_n_flx_org", truth = "PM_0_flx_org", name = "bias_PM_flx_org"),
-      list(stat = "bias", estimate = "PM_n_flx_ind", truth = "PM_0_flx_ind", name = "bias_PM_flx_ind")
+      list(stat = "bias", estimate = "NIE_n_tps_org", truth = "NIE_0_org", name = "bias_NIE_tps_org"),
+      list(stat = "bias", estimate = "NIE_n_tps_ind", truth = "NIE_0_ind", name = "bias_NIE_tps_ind"),
+      list(stat = "bias", estimate = "NDE_n_tps_org", truth = "NDE_0_org", name = "bias_NDE_tps_org"),
+      list(stat = "bias", estimate = "NDE_n_tps_ind", truth = "NDE_0_ind", name = "bias_NDE_tps_ind"),
+      list(stat = "bias", estimate = "PM_n_tps_org", truth = "PM_0_org", name = "bias_PM_tps_org"),
+      list(stat = "bias", estimate = "PM_n_tps_ind", truth = "PM_0_ind", name = "bias_PM_tps_ind"),
+      list(stat = "bias", estimate = "NIE_n_flx_org", truth = "NIE_0_org", name = "bias_NIE_flx_org"),
+      list(stat = "bias", estimate = "NIE_n_flx_ind", truth = "NIE_0_ind", name = "bias_NIE_flx_ind"),
+      list(stat = "bias", estimate = "NDE_n_flx_org", truth = "NDE_0_org", name = "bias_NDE_flx_org"),
+      list(stat = "bias", estimate = "NDE_n_flx_ind", truth = "NDE_0_ind", name = "bias_NDE_flx_ind"),
+      list(stat = "bias", estimate = "PM_n_flx_org", truth = "PM_0_org", name = "bias_PM_flx_org"),
+      list(stat = "bias", estimate = "PM_n_flx_ind", truth = "PM_0_ind", name = "bias_PM_flx_ind")
     )
     
     # bias percentage
