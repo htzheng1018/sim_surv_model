@@ -9,8 +9,7 @@
   library(kableExtra)
   source("R/create_data.R", local = T)
   source("R/true_func.r", local = T)
-  source("R/est_tps.r", local = T)
-  source("R/est_flx.r", local = T)
+  source("R/est_med.r", local = T)
 }
 
 
@@ -59,10 +58,10 @@ run_on_cluster(
       val_0_ind = true_func(L$surv_time$surv_type, L$surv_time$surv_params, t_ind, dat_ind, "math", ind = T)
       
       # two-phase sampling estimator and flexible estimator
-      val_n_tps_org = est_tps(dat_org, t_org)
-      val_n_tps_ind = est_tps(dat_ind, t_ind)
-      val_n_flx_org = est_flx(dat_org, t_org)
-      val_n_flx_ind = est_flx(dat_ind, t_ind)
+      val_n_tps_org = est_med(dat_org, t_org)
+      val_n_tps_ind = est_med(dat_ind, t_ind)
+      val_n_flx_org = est_med(dat_org, t_org, edge = T)
+      val_n_flx_ind = est_med(dat_ind, t_ind, edge = T)
       
       # results
       return(list(
@@ -73,7 +72,7 @@ run_on_cluster(
         "NDE_0_ind" = val_0_ind["NDE", "true"],
         "PM_0_org" = val_0_org["PM", "true"],
         "PM_0_ind" = val_0_ind["PM", "true"],
-
+        
         # estimators
         "NIE_n_tps_org" = val_n_tps_org["NIE", "estimate"],
         "NIE_n_tps_ind" = val_n_tps_ind["NIE", "estimate"],
