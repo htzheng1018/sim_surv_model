@@ -257,6 +257,16 @@ run_on_cluster(
 
 
 
+# save results
+saveRDS(bias, file = "Evaluation/vaccine_bias.rds")
+saveRDS(bias_percentage, file = "Evaluation/vaccine_bias_percentage.rds")
+saveRDS(coverage, file = "Evaluation/vaccine_coverage.rds")
+saveRDS(estimators, file = "Evaluation/vaccine_estimaters.rds")
+saveRDS(standard_error, file = "Evaluation/vaccine_standard_error.rds")
+saveRDS(true_values, file = "Evaluation/vaccine_true_values.rds")
+
+
+
 # end time
 end_time = Sys.time()
 execution_time = end_time - start_time
