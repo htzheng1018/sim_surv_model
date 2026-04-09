@@ -1,6 +1,4 @@
 
-
-
 est_med = function(dat, t, edge = F, boots = 1000) {
   # get data in different treatment groups
   dat$`I(S == 0)TRUE` = ifelse(dat$S == 0, 1, 0) # indicator of S = 0
@@ -8,11 +6,15 @@ est_med = function(dat, t, edge = F, boots = 1000) {
   dat_vac = dat[dat$Z == 1 & dat$treat == 1, ] # vaccine group in a two-phase sampling framework
   
   # survival functions
-  model_plc = coxph(Surv(Y, delta) ~ X1 + X2, data = dat_plc)
+  X_all = grep("^X", names(dat), value = TRUE)
+  form_plc = as.formula(paste("Surv(Y, delta) ~ ", paste(X_all, collapse = " + ")))
+  model_plc = coxph(form_plc, data = dat_plc)
   if (edge == F) {
-    model_vac = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_vac, weights = ipw)
+    form_vac = as.formula(paste("Surv(Y, delta) ~ ", paste(X_all, collapse = " + "), " + S"))
+    model_vac = coxph(form_vac, data = dat_vac, weights = ipw)
   } else if (edge == T) {
-    model_vac = coxph(Surv(Y, delta) ~ X1 + X2 + S + I(S == 0), data = dat_vac, weights = ipw)
+    form_vac = as.formula(paste("Surv(Y, delta) ~ ", paste(X_all, collapse = " + "), " + S + I(S == 0)"))
+    model_vac = coxph(form_vac, data = dat_vac, weights = ipw)
   }
   
   # estimated risk ratio
@@ -63,11 +65,11 @@ est_med = function(dat, t, edge = F, boots = 1000) {
     data.boot = dat[samps, ]
     dat_plc.boot = data.boot[data.boot$treat == 0, ]
     dat_vac.boot = data.boot %>% dplyr::filter(Z == 1 & treat==1)
-    model_plc.boot = coxph(Surv(Y, delta) ~ X1 + X2, data = dat_plc.boot)
+    model_plc.boot = coxph(form_plc, data = dat_plc.boot)
     if (edge == F) {
-      model_vac.boot = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_vac.boot, weights = ipw)
+      model_vac.boot = coxph(form_vac, data = dat_vac.boot, weights = ipw)
     } else if (edge == T) {
-      model_vac.boot = coxph(Surv(Y, delta) ~ X1 + X2 + S + I(S == 0), data = dat_vac.boot, weights = ipw)
+      model_vac.boot = coxph(form_vac, data = dat_vac.boot, weights = ipw)
     }
     r_p.boot = risk_n(model_plc.boot, dat_plc.boot, t, "plc", edge)
     r_v.boot = risk_n(model_vac.boot, dat_vac.boot, t, "vac", edge)
