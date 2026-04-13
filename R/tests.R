@@ -3,9 +3,8 @@
 #### set up ####
 ################
 
-library(SimEngine)
-library(kableExtra)
 library(readr)
+library(survival)
 source("R/create_data.R", local = T)
 source("R/true_func.r", local = T)
 source("R/est_med.r", local = T)
@@ -40,6 +39,8 @@ dat_test = dat_test %>%
                 Z = casecontrol,
                 ipw = ipw)
 head(dat_test)
+dim(dat_test)
+# 2302   13
 
 
 
@@ -52,9 +53,25 @@ dat_test1 = dat_test %>% dplyr::mutate(S = S1)
 val_n_tps = est_med(dat_test1, 578)
 val_n_flx = est_med(dat_test1, 578, edge = T)
 
+# for IgG_BioRV144_C52_AE
+dat_test2 = dat_test %>% dplyr::mutate(S = S2)
+val_n_tps = est_med(dat_test1, 578)
+val_n_flx = est_med(dat_test1, 578, edge = T)
 
+# for IgG_BioRV144_C52_C
+dat_test3 = dat_test %>% dplyr::mutate(S = S3)
+val_n_tps = est_med(dat_test1, 578)
+val_n_flx = est_med(dat_test1, 578, edge = T)
 
+# for IgG_BioRV144_V2_AE
+dat_test4 = dat_test %>% dplyr::mutate(S = S4)
+val_n_tps = est_med(dat_test1, 578)
+val_n_flx = est_med(dat_test1, 578, edge = T)
 
+# for IgG_BioRV144_V2_B
+dat_test5 = dat_test %>% dplyr::mutate(S = S5)
+val_n_tps = est_med(dat_test1, 578)
+val_n_flx = est_med(dat_test1, 578, edge = T)
 
 
 
