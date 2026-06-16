@@ -48,6 +48,8 @@ est_med = function(dat, t, edge = F, boots = 1000) {
   r_p = risk_n(model_plc, dat_plc, t, "plc", edge)
   r_v = risk_n(model_vac, dat_vac, t, "vac", edge)
   r_m = risk_n(model_vac, dat_vac, t, "med", edge)
+  risks = c(r_p = r_p, r_v = r_v, r_m = r_m)
+  
   NIE_n = r_v / r_m
   NDE_n = r_m / r_p
   PM_n = 1 - log(NDE_n) / (log(NIE_n) + log(NDE_n))
@@ -93,5 +95,6 @@ est_med = function(dat, t, edge = F, boots = 1000) {
     up = c(ci_NIE[2], ci_NDE[2], ci_PM[2])
   )
   rownames(result) = c("NIE", "NDE", "PM")
-  return(result)
+  
+  return(list(result = result, risks = risks))
 }

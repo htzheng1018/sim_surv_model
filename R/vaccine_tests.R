@@ -5,6 +5,7 @@
 
 library(readr)
 library(survival)
+library(dplyr)
 source("R/create_data.R", local = T)
 source("R/true_func.r", local = T)
 source("R/est_med.r", local = T)
@@ -48,30 +49,55 @@ dim(dat_test)
 #### test ####
 ##############
 
-# for IgG_AEgp41ID_BP
-dat_test1 = dat_test %>% dplyr::mutate(S = S1)
-val_n_tps = est_med(dat_test1, 578)
-val_n_flx = est_med(dat_test1, 578, edge = T)
-
-# for IgG_BioRV144_C52_AE
-dat_test2 = dat_test %>% dplyr::mutate(S = S2)
-val_n_tps = est_med(dat_test1, 578)
-val_n_flx = est_med(dat_test1, 578, edge = T)
-
-# for IgG_BioRV144_C52_C
-dat_test3 = dat_test %>% dplyr::mutate(S = S3)
-val_n_tps = est_med(dat_test1, 578)
-val_n_flx = est_med(dat_test1, 578, edge = T)
-
 # for IgG_BioRV144_V2_AE
 dat_test4 = dat_test %>% dplyr::mutate(S = S4)
-val_n_tps = est_med(dat_test1, 578)
-val_n_flx = est_med(dat_test1, 578, edge = T)
+val_n_tps4 = est_med(dat_test4, 578)
+print(val_n_tps4)
+
+
+val_n_flx4 = est_med(dat_test4, 578, edge = T)
+print(val_n_tps4)
+print(val_n_flx4)
 
 # for IgG_BioRV144_V2_B
 dat_test5 = dat_test %>% dplyr::mutate(S = S5)
-val_n_tps = est_med(dat_test1, 578)
-val_n_flx = est_med(dat_test1, 578, edge = T)
+val_n_tps5 = est_med(dat_test5, 578)
+val_n_flx5 = est_med(dat_test5, 578, edge = T)
+print(val_n_tps5)
+print(val_n_flx5)
+
+
+
+
+
+
+
+
+
+# for IgG_AEgp41ID_BP
+dat_test1 = dat_test %>% dplyr::mutate(S = S1)
+val_n_tps1 = est_med(dat_test1, 578)
+val_n_flx1 = est_med(dat_test1, 578, edge = T)
+
+# for IgG_BioRV144_C52_AE
+dat_test2 = dat_test %>% dplyr::mutate(S = S2)
+val_n_tps2 = est_med(dat_test2, 578)
+val_n_flx2 = est_med(dat_test2, 578, edge = T)
+
+# for IgG_BioRV144_C52_C
+dat_test3 = dat_test %>% dplyr::mutate(S = S3)
+val_n_tps3 = est_med(dat_test3, 578)
+val_n_flx3 = est_med(dat_test3, 578, edge = T)
+
+# for IgG_BioRV144_V2_AE
+dat_test4 = dat_test %>% dplyr::mutate(S = S4)
+val_n_tps4 = est_med(dat_test4, 578)
+val_n_flx4 = est_med(dat_test4, 578, edge = T)
+
+# for IgG_BioRV144_V2_B
+dat_test5 = dat_test %>% dplyr::mutate(S = S5)
+val_n_tps5 = est_med(dat_test5, 578)
+val_n_flx5 = est_med(dat_test5, 578, edge = T)
 
 
 

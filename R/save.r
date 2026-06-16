@@ -1,242 +1,99 @@
-# true survival function
-surv_true = function(surv_type, surv_params, t, data, type, method, ind = FALSE) {
-  if (surv_type == "Exponential") {
-    lambda = surv_params
-    Q_0 = exp(- lambda * t)
-  } else if ( surv_type == "Gompertz") {
-    alpha = surv_params[1]
-    lambda = surv_params[2]
-    Q_0 = exp((lambda/alpha) * (1 - exp(alpha*t)))
-  }
-  if (ind == TRUE) {
-    data$`I(S == 0)TRUE` = ifelse(data$S == 0, 1, 0)
+
+est_med = function(dat, t, edge = F, boots = 1000) {
+  # get data in different treatment groups
+  dat$`I(S == 0)TRUE` = ifelse(dat$S == 0, 1, 0) # indicator of S = 0
+  dat_plc = dat[dat$treat == 0, ]
+  dat_vac = dat[dat$Z == 1 & dat$treat == 1, ] # vaccine group in a two-phase sampling framework
+  
+  # survival functions
+  X_all = grep("^X", names(dat), value = TRUE)
+  form_plc = as.formula(paste("Surv(Y, delta) ~ ", paste(X_all, collapse = " + ")))
+  model_plc = coxph(form_plc, data = dat_plc)
+  if (edge == F) {
+    form_vac = as.formula(paste("Surv(Y, delta) ~ ", paste(X_all, collapse = " + "), " + S"))
+    model_vac = coxph(form_vac, data = dat_vac, weights = ipw)
+  } else if (edge == T) {
+    form_vac = as.formula(paste("Surv(Y, delta) ~ ", paste(X_all, collapse = " + "), " + S + I(S == 0)"))
+    model_vac = coxph(form_vac, data = dat_vac, weights = ipw)
   }
   
-  if (method == "sample") {
-    if (type == "plc") {
-      unprop = exp(0.5*data$X1 + 0.7*data$X2) # no s in placebo group
-    } else if (type == "vac") {
-      if (ind == TRUE) {
-        unprop = exp(0.5*data$X1 + 0.7*data$X2 - 2*data$S - 0.5*data$`I(S == 0)TRUE`) # have s in vaccine group
-      } else {
-        unprop = exp(0.5*data$X1 + 0.7*data$X2 - 2*data$S) # have s in vaccine group
+  # estimated risk ratio
+  risk_n = function(model, dat, t, treatment, edge) {
+    bh = basehaz(model, centered = F)
+    index = which.min(abs(bh$time - t))
+    H_0 = bh$hazard[index]
+    beta = model$coefficients
+    X_S = dat[, c(names(model$coefficients))]
+    unprop = exp(beta %*% t(X_S))
+    Q = exp(- H_0 * unprop)
+    
+    if (treatment == "plc") {
+      Q_n = mean(Q)
+    } else if (treatment== "vac") {
+      Q_n = sum(Q * dat$ipw) / sum(dat$ipw)
+    } else if (treatment == "med") {
+      X_S_med = X_S
+      X_S_med$`S` = 0
+      if (edge == T) {
+        X_S_med$`I(S == 0)TRUE` = 1 # indicator of S= 0
       }
-    } else if (type == "med") {
-      if (ind == TRUE) {
-        unprop = exp(0.5*data$X1 + 0.7*data$X2 - 2*0 - 0.5*1) # s = 0 in mediation group
-      } else {
-        unprop = exp(0.5*data$X1 + 0.7*data$X2 - 2*0) # s = 0 in mediation group
-      }
+      unprop_med = exp(beta %*% t(X_S_med))
+      Q_med = exp(- H_0 * unprop_med)
+      Q_n = sum(Q_med * dat$ipw) / sum(dat$ipw)
     }
-    result = mean(Q_0 ^ (unprop))
-  } else if (method == "math") {
-    if (type == "plc") {
-      integrand = function(u) {
-        return(Q_0 ^ exp(u))
-      }
-      result1 = integrate(integrand, lower = 0, upper = 0.7)$value
-      result2 = integrate(integrand, lower = 0.5, upper = 1.2)$value
-      result = (5/7)*(result1 + result2)
-    } else if (type == "vac") {
-      # P(S | X1, X2, treat)
-      # treat = 1 in vaccine group
-      if (ind == TRUE) {
-        # S = 0 (to avoid integrating the Dirac function)
-        integrand1 = function(X1, X2) {
-          unprop = 0.5*X1 + 0.7*X2 - 0.5*1
-          Q = Q_0 ^ exp(unprop)
-          prob_tmp = 1 / (1 + exp(0.5*X1 + 0.7*X2 + 1))
-          result = Q * prob_tmp
-          return(result)
-        }
-        result00 = integrate(function(X2) integrand1(X1 = 0, X2), lower = 0, upper = 1)$value
-        result01 = integrate(function(X2) integrand1(X1 = 1, X2), lower = 0, upper = 1)$value
-        # S > 0
-        integrand2 = function(X1, X2, S) {
-          unprop = 0.5*X1 + 0.7*X2 - 2*S - 0.5*0
-          Q = Q_0 ^ exp(unprop)
-          # Q = pmax(Q_0 ^ exp(unprop), 1e-2)
-          prob_tmp = 1 / (1 + exp(0.5*X1 + 0.7*X2 + 1))
-          result = Q * (1 - prob_tmp) * dtruncnorm(S, a = 0, b = 1, mean = 0.5, sd = 0.2)
-          return(result)
-        }
-        result10 = integral2(function(X2, S) integrand2(X1 = 0, X2, S), xmin = 0, xmax = 1, ymin = 0, ymax = 1)$Q
-        result11 = integral2(function(X2, S) integrand2(X1 = 1, X2, S), xmin = 0, xmax = 1, ymin = 0, ymax = 1)$Q
-        # expectations
-        result = 0.5*(result00 + result10) + 0.5*(result01 + result11)
-      } else {
-        # S = 0 (to avoid integrating the Dirac function)
-        integrand1 = function(X1, X2) {
-          unprop = 0.5*X1 + 0.7*X2
-          Q = Q_0 ^ exp(unprop)
-          prob_tmp = 1 / (1 + exp(0.5*X1 + 0.7*X2 + 1))
-          result = Q * prob_tmp
-          return(result)
-        }
-        result00 = integrate(function(X2) integrand1(X1 = 0, X2), lower = 0, upper = 1)$value
-        result01 = integrate(function(X2) integrand1(X1 = 1, X2), lower = 0, upper = 1)$value
-        # S > 0
-        integrand2 = function(X1, X2, S) {
-          unprop = 0.5*X1 + 0.7*X2 - 2*S
-          Q = Q_0 ^ exp(unprop)
-          # Q = pmax(Q_0 ^ exp(unprop), 1e-2)
-          prob_tmp = 1 / (1 + exp(0.5*X1 + 0.7*X2 + 1))
-          result = Q * (1 - prob_tmp) * dtruncnorm(S, a = 0, b = 1, mean = 0.5, sd = 0.2)
-          return(result)
-        }
-        result10 = integral2(function(X2, S) integrand2(X1 = 0, X2, S), xmin = 0, xmax = 1, ymin = 0, ymax = 1)$Q
-        result11 = integral2(function(X2, S) integrand2(X1 = 1, X2, S), xmin = 0, xmax = 1, ymin = 0, ymax = 1)$Q
-        # expectations
-        result = 0.5*(result00 + result10) + 0.5*(result01 + result11)
-      }
-    } else if (type == "med") {
-      if (ind == TRUE) {
-        integrand = function(u) {
-          return(Q_0 ^ exp(u))
-        }
-        result1 = integrate(integrand, lower = -0.5, upper = 0.2)$value
-        result2 = integrate(integrand, lower = 0, upper = 0.7)$value
-        result = (5/7)*(result1 + result2)
-      } else {
-        integrand = function(u) {
-          return(Q_0 ^ exp(u))
-        }
-        result1 = integrate(integrand, lower = 0, upper = 0.7)$value
-        result2 = integrate(integrand, lower = 0.5, upper = 1.2)$value
-        result = (5/7)*(result1 + result2)
-      }
+    result = 1 - Q_n
+  }
+  
+  # estimaton of NIE, NDE and proportion mediated
+  r_p = risk_n(model_plc, dat_plc, t, "plc", edge)
+  r_v = risk_n(model_vac, dat_vac, t, "vac", edge)
+  r_m = risk_n(model_vac, dat_vac, t, "med", edge)
+  NIE_n = r_v / r_m
+  NDE_n = r_m / r_p
+  PM_n = 1 - log(NDE_n) / (log(NIE_n) + log(NDE_n))
+  
+  # standard error of NIE, NDE and proportion mediated
+  # Bootstrap
+  nn = nrow(dat)
+  R = boots
+  NIE.boot = c()
+  NDE.boot = c()
+  PM.boot = c()
+  for (i in 1: R) {
+    est.boot = c()
+    samps = sample(1: nn, size = nn, replace = TRUE)
+    data.boot = dat[samps, ]
+    dat_plc.boot = data.boot[data.boot$treat == 0, ]
+    dat_vac.boot = data.boot %>% dplyr::filter(Z == 1 & treat==1)
+    model_plc.boot = coxph(form_plc, data = dat_plc.boot)
+    if (edge == F) {
+      model_vac.boot = coxph(form_vac, data = dat_vac.boot, weights = ipw)
+    } else if (edge == T) {
+      model_vac.boot = coxph(form_vac, data = dat_vac.boot, weights = ipw)
     }
+    r_p.boot = risk_n(model_plc.boot, dat_plc.boot, t, "plc", edge)
+    r_v.boot = risk_n(model_vac.boot, dat_vac.boot, t, "vac", edge)
+    r_m.boot = risk_n(model_vac.boot, dat_vac.boot, t, "med", edge)
+    NIE.boot[i] = r_v.boot / r_m.boot
+    NDE.boot[i] = r_m.boot / r_p.boot
+    PM.boot[i] = 1 - log(NDE.boot[i]) / (log(NIE.boot[i]) + log(NDE.boot[i]))
   }
-  return(result)
+  
+  ci_NIE = quantile(NIE.boot, prob = c(0.025, 0.975))
+  ci_NDE = quantile(NDE.boot, prob = c(0.025, 0.975))
+  ci_PM = quantile(PM.boot, prob = c(0.025, 0.975))
+  NIE_se = sqrt(sum((NIE.boot - mean(NIE.boot)) ^ 2) / (R - 1))
+  NDE_se = sqrt(sum((NDE.boot - mean(NDE.boot)) ^ 2) / (R - 1))
+  PM_se = sqrt(sum((PM.boot - mean(PM.boot)) ^ 2) / (R - 1))
+  
+  result = data.frame(
+    estimate = c(NIE_n, NDE_n, PM_n),
+    se = c(NIE_se, NDE_se, PM_se),
+    low = c(ci_NIE[1], ci_NDE[1], ci_PM[1]),
+    up = c(ci_NIE[2], ci_NDE[2], ci_PM[2])
+  )
+  rownames(result) = c("NIE", "NDE", "PM")
+  
+  risks = c(r_p = r_p, r_v = r_v, r_m = r_m)
+  return(list(result = result, risks = risks))
 }
-
-
-
-# Two Phase Sampling estimated survival function
-surv_two = function(model, t, data, type, ind = FALSE) {
-  bh_func = basehaz(model, centered = F)
-  index = which.min(abs(bh_func$time - t))
-  H_0 = bh_func$hazard[index]
-  beta = model$coefficients
-  if (ind == TRUE) {
-    data$`I(S == 0)TRUE` = ifelse(data$S == 0, 1, 0)
-  }
-  X_S = data[, c(names(model$coefficients))]
-  unprop = exp(beta %*% t(X_S))
-  Q = exp(- H_0 * unprop)
-  
-  if (type == "plc") {
-    result = mean(Q)
-  } else if (type == "vac") {
-    result = sum(Q * data$ipw) / sum(data$ipw)
-  } else if (type == "med") {
-    X_S_med = X_S
-    X_S_med$`S` = 0
-    if (ind == TRUE) {
-      X_S_med$`I(S == 0)TRUE` = 1
-    }
-    unprop_med = exp(beta %*% t(X_S_med))
-    Q_med = exp(- H_0 * unprop_med)
-    result = sum(Q_med * data$ipw) / sum(data$ipw)
-  }
-  return(result)
-}
-
-
-
-create_data = function(n, surv_type, surv_params, sample_type, ind = FALSE) {
-  # id
-  id = seq(1, n)
-  
-  # treatment
-  treat = sample(0:1, n, replace = TRUE, prob = c(0.3, 0.7))
-  
-  # X1
-  X1 = rbinom(n = n, size = 1, prob = 0.5)
-  
-  # X2
-  X2 = runif(n = n, min = 0, max = 1)
-  
-  # biomarker
-  S = rtruncnorm(n = n, a = 0, b = 1, mean = 0.5, sd = 0.2) # truncated normal in (0, 1)
-  prob_tmp = 1 / (1 + exp(0.5*X1 + 0.7*X2 + treat)) # to make edge_prob distributed not too extremely
-  val_tmp = rbinom(n, prob = prob_tmp, size = 1)
-  S = treat * (1 - val_tmp) * S
-  # S = (1 - val_tmp) * S
-  
-  # survival time
-  U = runif(n = n)
-  if (ind == "TRUE") {
-    V = 0.5*X1 + 0.7*X2 - 2*S - 0.5*I(S == 0)
-  } else {
-    V = 0.5*X1 + 0.7*X2 - 2*S
-  }
-  if (surv_type == "Exponential") {
-    lambda = surv_params
-    t = -log(U) / (lambda * exp(V))
-  } else if (surv_type == "Gompertz") {
-    alpha = surv_params[1]
-    lambda = surv_params[2]
-    t = 1/alpha * log(1 - (alpha * log(U)) / (lambda * exp(V)))
-  }
-  
-  # censored time
-  U = runif(n = n)
-  if (surv_type == "Exponential") {
-    lambda = surv_params
-    C = - log(U) / (lambda * exp(0.5*X1 + 0.7*X2))
-  } else if (surv_type == "Gompertz") {
-    alpha = surv_params[1]
-    # alpha = 0.01
-    lambda = surv_params[2]
-    C = 1/alpha * log(1 - (alpha * log(U)) / (lambda * exp(0.5*X1 + 0.7*X2)))
-  }
-  
-  # delta
-  delta = ifelse(t <= C, 1, 0)
-  
-  # observed time
-  Y = pmin(t, C)
-  
-  # two-phase indicator
-  if (sample_type == "iid") {
-    prob_tmp = 0.4
-    Z = treat * rbinom(n = n, size = 1, prob = prob_tmp)
-  } else if (sample_type == "complex") {
-    t0 = 80 # set the time of interest
-    prob_tmp = delta*I(Y <= t0) + (1 - delta*I(Y <= t0)) * (1 / (1 + exp(- 0.5*X1 - 0.7*X2 + 3)))
-    Z = treat * rbinom(n = n, size = 1, prob = prob_tmp)
-  }
-  
-  # temporary dataframe
-  data = data.frame("id" = id, "treat" = treat, "Y" = Y, "delta" = delta, "S" = S, "X1" = X1, "X2" = X2, "Z" = Z,
-                    "C" = C, "t" = t)
-  
-  # using ipwpoint function to generate inverse probability weights
-  # if (sample_type == "iid") {
-  #   ipw = ifelse(Z == 1, 1 / prob_tmp, NA)
-  # } else if (sample_type == "complex") {
-  #   ipw = ipwpoint(
-  #     exposure = Z,
-  #     family = "binomial",  # The treatment is binary
-  #     link = "logit",
-  #     denominator = ~ X1 + X2 + treat,
-  #     data = data
-  #   )$ipw.weights
-  # }
-  ipw = ifelse(Z == 1, 1 / prob_tmp, NA)
-  
-  # final data
-  data = data %>% 
-    dplyr::mutate(ipw = ipw)
-  
-  return(data)
-}
-
-
-
-
-
-
-
-
