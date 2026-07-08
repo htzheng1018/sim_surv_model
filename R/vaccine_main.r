@@ -58,10 +58,10 @@ run_on_cluster(
       val_0_ind = true_func(L$surv_time$surv_type, L$surv_time$surv_params, t_ind, dat_ind, "math", ind = T)
       
       # two-phase sampling estimator and flexible estimator
-      val_n_tps_org = est_med(dat_org, t_org)
-      val_n_tps_ind = est_med(dat_ind, t_ind)
-      val_n_flx_org = est_med(dat_org, t_org, edge = T)
-      val_n_flx_ind = est_med(dat_ind, t_ind, edge = T)
+      val_n_tps_org = est_med(dat_org, t_org)$result
+      val_n_tps_ind = est_med(dat_ind, t_ind)$result
+      val_n_flx_org = est_med(dat_org, t_org, edge = T)$result
+      val_n_flx_ind = est_med(dat_ind, t_ind, edge = T)$result
       
       # results
       return(list(
