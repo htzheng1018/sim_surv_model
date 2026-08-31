@@ -1,9 +1,3 @@
-# This could be executed both locally and on a computing cluster.
-
-# For the Two-phase sampling estimators, we assessed their bias and variance within a CoxPH framework.  
-# Additionally, we used a Bootstrap method to evaluate the coverage and variance bias of the estimators.
-
-
 
 ################
 #### set up ####
@@ -12,14 +6,28 @@
 # load SimEngine + functions
 {
   library(SimEngine)
+  library(vaccine)
   library(kableExtra)
   source("R/create_data.R", local = T)
-  source("R/surv_true.R", local = T)
-  source("R/surv_km.R", local = T)
-  source("R/surv_two.R", local = T)
-  source("R/se_km.R", local = T)
-  source("R/se_two.R", local = T)
-  source("R/ci.R", local = T)
+  source("R/true_func.r", local = T)
+  source("R/est_med.r", local = T)
+}
+
+# split the large result into the X-only and X+S versions
+split_med_result = function(result, version = c("raw", "xs")) {
+  version = match.arg(version)
+  columns = if (version == "raw") {
+    c("NIE_one", "NDE", "PM_one")
+  } else if (version == "xs") {
+    c("NIE_two", "NDE", "PM_two")
+  }
+  out = result[, columns, drop = FALSE]
+  colnames(out) = c("NIE", "NDE", "PM")
+  # if is not calculated for the X+S version
+  if (version == "xs") {
+    out[c("se_if", "low_if", "up_if"), ] = NA_real_
+  }
+  return(out)
 }
 
 
@@ -38,258 +46,117 @@ run_on_cluster(
     sim = new_sim()
     
     sim %<>% set_levels(
-      n = c(500, 1000),
       # n = c(500, 1000, 2000, 4000, 8000),
+      n = c(500, 1000),
       surv_time = list(
         "Exp" = list(surv_type = "Exponential", surv_params = 2e-2),
         "Gom" = list(surv_type = "Gompertz", surv_params = c(0.1, 1e-3))
       )
     )
     
-    sim %<>% set_config(num_sim = 1000, n_cores = 4, seed = 1018,
-                        packages = c("survival", "parallel", "truncnorm", "devtools", "ipw", "pracma")
+    sim %<>% set_config(num_sim = 100, n_cores = 13, seed = 1018,
+                        packages = c("survival", "parallel", "truncnorm", "pracma", "dplyr", "vaccine")
     )
     
     sim %<>% set_script(function() {
       # normal data and normal model, without the indicator
-      dat_phaseOne = create_data(L$n, L$surv_time$surv_type, L$surv_time$surv_params, "complex") # phase one data (original)
-      dat_phaseTwo_vac = dat_phaseOne %>%
-        dplyr::filter(Z == 1 & treat==1) # vaccine group in phase two data
-      dat_phaseOne_plc = dat_phaseOne[dat_phaseOne$treat == 0, ] # treat = 0 in placebo group
-      dat_phaseOne_vac = dat_phaseOne[dat_phaseOne$treat == 1, ] # treat = 1 in vaccine group
-      model_two_plc = coxph(Surv(Y, delta) ~ X1 + X2, data = dat_phaseOne_plc) # no s in placebo group
-      model_two_vac = coxph(Surv(Y, delta) ~ X1 + X2 + S, data = dat_phaseTwo_vac, weights = ipw) # s in vaccine group
+      dat_org = create_data(L$n, L$surv_time$surv_type, L$surv_time$surv_params, "complex") # phase one data (original)
+      dat_ind = create_data(L$n, L$surv_time$surv_type, L$surv_time$surv_params, "complex", ind = TRUE) # phase one data with biomarker indicator
       
-      # normal data with biomarker indicator model
-      model_two_vac_plus = coxph(Surv(Y, delta) ~ X1 + X2 + S + I(S == 0), data = dat_phaseTwo_vac, weights = ipw) # refined model
-      
-      # biomarker indicator data and biomarker indicator model
-      dat_phaseOne_pro = create_data(L$n, L$surv_time$surv_type, L$surv_time$surv_params, "complex", ind = T) # phase one data
-      dat_phaseTwo_vac_pro = dat_phaseOne_pro %>%
-        dplyr::filter(Z == 1 & treat==1) # vaccine group in phase two data
-      dat_phaseOne_plc_pro = dat_phaseOne_pro[dat_phaseOne_pro$treat == 0, ] # treat = 0 in placebo group
-      dat_phaseOne_vac_pro = dat_phaseOne_pro[dat_phaseOne_pro$treat == 1, ] # treat = 1 in vaccine group
-      model_two_plc_pro = coxph(Surv(Y, delta) ~ X1 + X2, data = dat_phaseOne_plc_pro) # no s in placebo group
-      model_two_vac_pro = coxph(Surv(Y, delta) ~ X1 + X2 + S + I(S == 0), data = dat_phaseTwo_vac_pro, weights = ipw) # refined model
-      
-      
-      
-      # # choose a specific time
-      # time_max = round(max(dat_phaseOne$Y))
-      # true_plc = c()
-      # true_vac = c()
-      # true_med = c()
-      # for (i in 1: time_max) {
-      #   true_plc[i] = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, i, dat_phaseOne_ind, "plc", "sample", ind = T)
-      #   true_vac[i] = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, i, dat_phaseOne_ind_vac, "vac", "sample", ind = T)
-      #   true_med[i] = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, i, dat_phaseOne_ind_vac, "med", "sample", ind = T)
-      # }
-      # t_plc = which.min(abs(true_plc - 0.5))
-      # print("placebo:")
-      # print(t_plc)
-      # t_vac = which.min(abs(true_vac - 0.5))
-      # print("vaccine:")
-      # print(t_vac)
-      # t_med = which.min(abs(true_med - 0.5))
-      # print("mediation:")
-      # print(t_med)
-      
+      # choose a specific time
       if (L$surv_time$surv_type == "Exponential") {
-        t_plc = 19
-        t_vac = 42
-        t_med = 19
-        t_plc_pro = 19
-        t_vac_pro = 46
-        t_med_pro = 32
+        t_org = 30
+        t_ind = 33
       } else if (L$surv_time$surv_type == "Gompertz") {
-        t_plc = 37
-        t_vac = 44
-        t_med = 37
-        t_plc_pro = 37
-        t_vac_pro = 45
-        t_med_pro = 42
+        t_org = 40
+        t_ind = 42
       }
       
+      # true value
+      val_0_org = true_func(L$surv_time$surv_type, L$surv_time$surv_params, t_org, dat_org, "math")
+      val_0_ind = true_func(L$surv_time$surv_type, L$surv_time$surv_params, t_ind, dat_ind, "math", ind = T)
       
+      # influence function
+      if_org = pkg_if(dat_org, t_org)
+      if_ind = pkg_if(dat_ind, t_ind)
       
-      # bootstrap to get the variance of true survival functions and estimators
-      # variance in normal data with normal model
-      ci_boot_plc = ci(dat_phaseOne_plc, t_plc, "plc", "bootstrap")
-      ci_boot_vac = ci(dat_phaseTwo_vac, t_vac, "vac", "bootstrap")
-      ci_boot_med = ci(dat_phaseTwo_vac, t_med, "med", "bootstrap")
+      # cox estimator with influence-function based inference
+      val_n_tps_org = est_med(dat_org, t_org, edge = FALSE, boots = 1000, if_result = if_org$tps)
+      val_n_tps_ind = est_med(dat_ind, t_ind, edge = FALSE, boots = 1000, if_result = if_org$tps)
+      val_n_flx_org = est_med(dat_org, t_org, edge = TRUE, boots = 1000, if_result = if_org$flx)
+      val_n_flx_ind = est_med(dat_ind, t_ind, edge = TRUE, boots = 1000, if_result = if_org$flx)
       
-      # variance in normal data with biomarker indicator model
-      ci_boot_plc_plus = ci(dat_phaseOne_plc, t_plc, "plc", "bootstrap", ind = T)
-      ci_boot_vac_plus = ci(dat_phaseTwo_vac, t_vac, "vac", "bootstrap", ind = T)
-      ci_boot_med_plus = ci(dat_phaseTwo_vac, t_med, "med", "bootstrap", ind = T)
+      # split results into X-only and X+S tables
+      res_tps_org_raw = split_med_result(val_n_tps_org$result, "raw")
+      res_tps_org_xs = split_med_result(val_n_tps_org$result, "xs")
+      res_tps_ind_raw = split_med_result(val_n_tps_ind$result, "raw")
+      res_tps_ind_xs = split_med_result(val_n_tps_ind$result, "xs")
+      res_flx_org_raw = split_med_result(val_n_flx_org$result, "raw")
+      res_flx_org_xs = split_med_result(val_n_flx_org$result, "xs")
+      res_flx_ind_raw = split_med_result(val_n_flx_ind$result, "raw")
+      res_flx_ind_xs = split_med_result(val_n_flx_ind$result, "xs")
+      small_results = list(
+        tps_org_raw = res_tps_org_raw,
+        tps_org_xs = res_tps_org_xs,
+        tps_ind_raw = res_tps_ind_raw,
+        tps_ind_xs = res_tps_ind_xs,
+        flx_org_raw = res_flx_org_raw,
+        flx_org_xs = res_flx_org_xs,
+        flx_ind_raw = res_flx_ind_raw,
+        flx_ind_xs = res_flx_ind_xs
+      )
       
-      # variance in biomarker indicator data with biomarker indicator model
-      ci_boot_plc_pro = ci(dat_phaseOne_plc_pro, t_plc_pro, "plc", "bootstrap", ind = T)
-      ci_boot_vac_pro = ci(dat_phaseTwo_vac_pro, t_vac_pro, "vac", "bootstrap", ind = T)
-      ci_boot_med_pro = ci(dat_phaseTwo_vac_pro, t_med_pro, "med", "bootstrap", ind = T)
-      
-      
-      
-      # get the Survival probability at the specific time point
-      # Kaplan-Meier functions
-      Q_est_km_plc = surv_km(t_plc, dat_phaseOne_plc, "plc")
-      Q_est_km_vac = surv_km(t_vac, dat_phaseTwo_vac, "vac")
-      Q_est_km_med = surv_km(t_med, dat_phaseTwo_vac, "med")
-      Q_est_km_plc_pro = surv_km(t_plc, dat_phaseOne_plc_pro, "plc")
-      Q_est_km_vac_pro = surv_km(t_vac, dat_phaseTwo_vac_pro, "vac")
-      Q_est_km_med_pro = surv_km(t_med, dat_phaseTwo_vac_pro, "med")
-      
-      # true survival functions
-      Q_true_plc = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, t_plc, dat_phaseOne, "plc", "math")
-      Q_true_vac = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, t_vac, dat_phaseOne_vac, "vac", "math")
-      Q_true_med = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, t_med, dat_phaseOne_vac, "med", "math")
-      Q_true_plc_pro = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, t_plc_pro, dat_phaseOne_pro, "plc", "math", ind = T)
-      Q_true_vac_pro = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, t_vac_pro, dat_phaseOne_vac_pro, "vac", "math", ind = T)
-      Q_true_med_pro = surv_true(L$surv_time$surv_type, L$surv_time$surv_params, t_med_pro, dat_phaseOne_vac_pro, "med", "math", ind = T)
-      
-      # survival functions in normal data with normal model
-      Q_est_two_plc = surv_two(model_two_plc, t_plc, dat_phaseOne_plc, "plc")
-      Q_est_two_vac = surv_two(model_two_vac, t_vac, dat_phaseTwo_vac, "vac")
-      Q_est_two_med = surv_two(model_two_vac, t_med, dat_phaseTwo_vac, "med")
-      
-      # survival functions in normal data with biomarker indicator model
-      Q_est_two_plc_plus = surv_two(model_two_plc, t_plc, dat_phaseOne_plc, "plc", ind = T)
-      Q_est_two_vac_plus = surv_two(model_two_vac_plus, t_vac, dat_phaseTwo_vac, "vac", ind = T)
-      Q_est_two_med_plus = surv_two(model_two_vac_plus, t_med, dat_phaseTwo_vac, "med", ind = T)
-      
-      # survival functions in biomarker indicator data with biomarker indicator model
-      Q_est_two_plc_pro = surv_two(model_two_plc_pro, t_plc_pro, dat_phaseOne_plc_pro, "plc", ind = T)
-      Q_est_two_vac_pro = surv_two(model_two_vac_pro, t_vac_pro, dat_phaseTwo_vac_pro, "vac", ind = T)
-      Q_est_two_med_pro = surv_two(model_two_vac_pro, t_med_pro, dat_phaseTwo_vac_pro, "med", ind = T)
-      
-      # get the true SE
-      # se_est_km = se_km(t, dat_phaseOne)
-      # se_est_two = se_two(t, dat_phaseOne)
-      
-      
-      
-      return(list(
-        # true survival functions
-        "Q_true_plc" = Q_true_plc,
-        "Q_true_vac" = Q_true_vac,
-        "Q_true_med" = Q_true_med,
-        "Q_true_plc_pro" = Q_true_plc_pro,
-        "Q_true_vac_pro" = Q_true_vac_pro,
-        "Q_true_med_pro" = Q_true_med_pro,
+      # results
+      result = list(
+        NIE_0_org = unname(val_0_org["NIE", "true"]),
+        NIE_0_ind = unname(val_0_ind["NIE", "true"]),
+        NDE_0_org = unname(val_0_org["NDE", "true"]),
+        NDE_0_ind = unname(val_0_ind["NDE", "true"]),
+        PM_0_org = unname(val_0_org["PM", "true"]),
+        PM_0_ind = unname(val_0_ind["PM", "true"])
+      )
+      for (i in names(small_results)) {
+        data_type = if (grepl("_org_", i)) {
+          "org"
+        } else {
+          "ind"
+        }
+        truth = if (data_type == "org") {
+          val_0_org
+        } else {
+          val_0_ind
+        }
+        result_table = small_results[[i]]
         
-        # estimators
-        # Kaplan-Meier estimator
-        "Q_est_km_plc" = Q_est_km_plc,
-        "Q_est_km_vac" = Q_est_km_vac,
-        "Q_est_km_med" = Q_est_km_med,
-        "Q_est_km_plc_pro" = Q_est_km_plc_pro,
-        "Q_est_km_vac_pro" = Q_est_km_vac_pro,
-        "Q_est_km_med_pro" = Q_est_km_med_pro,
-        # two-phase sampling estimators
-        "Q_est_two_plc" = Q_est_two_plc,
-        "Q_est_two_vac" = Q_est_two_vac,
-        "Q_est_two_med" = Q_est_two_med,
-        "Q_est_two_plc_plus" = Q_est_two_plc_plus,
-        "Q_est_two_vac_plus" = Q_est_two_vac_plus,
-        "Q_est_two_med_plus" = Q_est_two_med_plus,
-        "Q_est_two_plc_pro" = Q_est_two_plc_pro,
-        "Q_est_two_vac_pro" = Q_est_two_vac_pro,
-        "Q_est_two_med_pro" = Q_est_two_med_pro,
-        
-        # bias
-        # K-M
-        "km_pctg_plc" = (Q_est_km_plc - Q_true_plc) / Q_true_plc * 100,
-        "km_pctg_vac" = (Q_est_km_vac - Q_true_vac) / Q_true_vac * 100,
-        "km_pctg_med" = (Q_est_km_med - Q_true_med) / Q_true_med * 100,
-        "km_pctg_plc_pro" = (Q_est_km_plc_pro - Q_true_plc_pro) / Q_true_plc_pro * 100,
-        "km_pctg_vac_pro" = (Q_est_km_vac_pro - Q_true_vac_pro) / Q_true_vac_pro * 100,
-        "km_pctg_med_pro" = (Q_est_km_med_pro - Q_true_med_pro) / Q_true_med_pro * 100,
-        # two-phase sampling
-        "two_pctg_plc" = (Q_est_two_plc - Q_true_plc) / Q_true_plc * 100,
-        "two_pctg_vac" = (Q_est_two_vac - Q_true_vac) / Q_true_vac * 100,
-        "two_pctg_med" = (Q_est_two_med - Q_true_med) / Q_true_med * 100,
-        "two_pctg_plc_plus" = (Q_est_two_plc_plus - Q_true_plc) / Q_true_plc * 100,
-        "two_pctg_vac_plus" = (Q_est_two_vac_plus - Q_true_vac) / Q_true_vac * 100,
-        "two_pctg_med_plus" = (Q_est_two_med_plus - Q_true_med) / Q_true_med * 100,
-        "two_pctg_plc_pro" = (Q_est_two_plc_pro - Q_true_plc_pro) / Q_true_plc_pro * 100,
-        "two_pctg_vac_pro" = (Q_est_two_vac_pro - Q_true_vac_pro) / Q_true_vac_pro * 100,
-        "two_pctg_med_pro" = (Q_est_two_med_pro - Q_true_med_pro) / Q_true_med_pro * 100,
-        
-        # variance
-        # K-M
-        "km_plc_low" = ci_boot_plc$km_low,
-        "km_plc_up" = ci_boot_plc$km_up,
-        "se_km_plc_boot" = ci_boot_plc$km_se,
-        "var_km_plc_boot" = ci_boot_plc$km_se ^ 2,
-        "km_vac_low" = ci_boot_vac$km_low,
-        "km_vac_up" = ci_boot_vac$km_up,
-        "se_km_vac_boot" = ci_boot_vac$km_se,
-        "var_km_vac_boot" = ci_boot_vac$km_se ^ 2,
-        "km_plc_low_pro" = ci_boot_plc_pro$km_low,
-        "km_plc_up_pro" = ci_boot_plc_pro$km_up,
-        "se_km_plc_boot_pro" = ci_boot_plc_pro$km_se,
-        "var_km_plc_boot_pro" = ci_boot_plc_pro$km_se ^ 2,
-        "km_vac_low_pro" = ci_boot_vac_pro$km_low,
-        "km_vac_up_pro" = ci_boot_vac_pro$km_up,
-        "se_km_vac_boot_pro" = ci_boot_vac_pro$km_se,
-        "var_km_vac_boot_pro" = ci_boot_vac_pro$km_se ^ 2,
-        # two-phase sampling
-        "two_plc_low" = ci_boot_plc$two_low,
-        "two_plc_up" = ci_boot_plc$two_up,
-        "se_two_plc_boot" = ci_boot_plc$two_se,
-        "var_two_plc_boot" = ci_boot_plc$two_se ^ 2,
-        "two_plc_low_plus" = ci_boot_plc_plus$two_low,
-        "two_plc_up_plus" = ci_boot_plc_plus$two_up,
-        "se_two_plc_boot_plus" = ci_boot_plc_plus$two_se,
-        "var_two_plc_boot_plus" = ci_boot_plc_plus$two_se ^ 2,
-        "two_plc_low_pro" = ci_boot_plc_pro$two_low,
-        "two_plc_up_pro" = ci_boot_plc_pro$two_up,
-        "se_two_plc_boot_pro" = ci_boot_plc_pro$two_se,
-        "var_two_plc_boot_pro" = ci_boot_plc_pro$two_se ^ 2,
-        "two_vac_low" = ci_boot_vac$two_low,
-        "two_vac_up" = ci_boot_vac$two_up,
-        "se_two_vac_boot" = ci_boot_vac$two_se,
-        "var_two_vac_boot" = ci_boot_vac$two_se ^ 2,
-        "two_vac_low_plus" = ci_boot_vac_plus$two_low,
-        "two_vac_up_plus" = ci_boot_vac_plus$two_up,
-        "se_two_vac_boot_plus" = ci_boot_vac_plus$two_se,
-        "var_two_vac_boot_plus" = ci_boot_vac_plus$two_se ^ 2,
-        "two_vac_low_pro" = ci_boot_vac_pro$two_low,
-        "two_vac_up_pro" = ci_boot_vac_pro$two_up,
-        "se_two_vac_boot_pro" = ci_boot_vac_pro$two_se,
-        "var_two_vac_boot_pro" = ci_boot_vac_pro$two_se ^ 2,
-        "two_med_low" = ci_boot_med$two_low,
-        "two_med_up" = ci_boot_med$two_up,
-        "se_two_med_boot" = ci_boot_med$two_se,
-        "var_two_med_boot" = ci_boot_med$two_se ^ 2,
-        "two_med_low_plus" = ci_boot_med_plus$two_low,
-        "two_med_up_plus" = ci_boot_med_plus$two_up,
-        "se_two_med_boot_plus" = ci_boot_med_plus$two_se,
-        "var_two_med_boot_plus" = ci_boot_med_plus$two_se ^ 2,
-        "two_med_low_pro" = ci_boot_med_pro$two_low,
-        "two_med_up_pro" = ci_boot_med_pro$two_up,
-        "se_two_med_boot_pro" = ci_boot_med_pro$two_se,
-        "var_two_med_boot_pro" = ci_boot_med_pro$two_se ^ 2,
-        
-        # "se_km_est" = se_est_km,
-        # "se_two_est" = se_est_two,
-        # "se_km_est" = se_est_km,
-        # "se_two_est" = se_est_two,
-        # "se_km_est" = se_est_km,
-        # "se_two_est" = se_est_two,
-        
-        ".complex" = list(
-          "model_plc" = model_two_plc,
-          "model_plc_pro" = model_two_plc_pro,
-          "model_vac" = model_two_vac,
-          "model_vac_plus" = model_two_vac_plus,
-          "model_vac_pro" = model_two_vac_pro,
-          "data_plc" = dat_phaseOne_plc,
-          "data_plc_pro" = dat_phaseOne_plc_pro,
-          "data_vac" = dat_phaseTwo_vac,
-          "data_vac_pro" = dat_phaseTwo_vac_pro
-        )
-      ))
+        for (j in c("NIE", "NDE", "PM")) {
+          estimate = result_table["estimate", j]
+          true_value = truth[j, "true"]
+          # estimator
+          result[[paste0(j, "_n_", i)]] = unname(estimate)
+          # se from bootstrap or if
+          result[[paste0(j, "_se_bs_", i)]] = unname(result_table["se_bs", j])
+          result[[paste0(j, "_se_if_", i)]] = unname(result_table["se_if", j])
+          # bias percentage
+          result[[paste0(j, "_bias_pct_", i)]] = unname((estimate - true_value) / true_value * 100)
+          # ci from bootstrap or if
+          for (method in c("bs", "if")) {
+            result[[paste0(j, "_low_", method, "_", i)]] = unname(result_table[paste0("low_", method), j])
+            result[[paste0(j, "_up_", method, "_", i)]] = unname(result_table[paste0("up_", method), j])
+          }
+        }
+      }
+      result[[".complex"]] = list(
+        dat_org = dat_org,
+        dat_ind = dat_ind,
+        val_0_org = val_0_org,
+        val_0_ind = val_0_ind,
+        val_n_tps_org = val_n_tps_org,
+        val_n_tps_ind = val_n_tps_ind,
+        val_n_flx_org = val_n_flx_org,
+        val_n_flx_ind = val_n_flx_ind
+      )
+      
+      return(result)
     })
   },
   
@@ -299,117 +166,83 @@ run_on_cluster(
   },
   
   last = {
-    # mean
-    Q_true = sim %>% SimEngine::summarize(
-      list(stat = "mean", x = "Q_true_plc"),
-      list(stat = "mean", x = "Q_true_vac"),
-      list(stat = "mean", x = "Q_true_med"),
-      list(stat = "mean", x = "Q_true_plc_pro"),
-      list(stat = "mean", x = "Q_true_vac_pro"),
-      list(stat = "mean", x = "Q_true_med_pro")
-    )
-    Q_est_km = sim %>% SimEngine::summarize(
-      list(stat = "mean", x = "Q_est_km_plc"),
-      list(stat = "mean", x = "Q_est_km_vac"),
-      list(stat = "mean", x = "Q_est_km_med"),
-      list(stat = "mean", x = "Q_est_km_plc_pro"),
-      list(stat = "mean", x = "Q_est_km_vac_pro"),
-      list(stat = "mean", x = "Q_est_km_med_pro")
-    )
-    Q_est_two = sim %>% SimEngine::summarize(
-      list(stat = "mean", x = "Q_est_two_plc"),
-      list(stat = "mean", x = "Q_est_two_vac"),
-      list(stat = "mean", x = "Q_est_two_med"),
-      list(stat = "mean", x = "Q_est_two_plc_plus"),
-      list(stat = "mean", x = "Q_est_two_vac_plus"),
-      list(stat = "mean", x = "Q_est_two_med_plus"),
-      list(stat = "mean", x = "Q_est_two_plc_pro"),
-      list(stat = "mean", x = "Q_est_two_vac_pro"),
-      list(stat = "mean", x = "Q_est_two_med_pro")
-    )
+    combos = c("tps_org_raw", "tps_org_xs", "tps_ind_raw", "tps_ind_xs", "flx_org_raw", "flx_org_xs", "flx_ind_raw", "flx_ind_xs")
+    raw_combos = combos[grepl("_raw$", combos)]
+    effects = c("NIE", "NDE", "PM")
+    truth_name = function(i, j) {
+      data_type = if (grepl("_org_", j)) {
+        "org"
+      } else {
+        "ind"
+      }
+      paste0(i, "_0_", data_type)
+    }
+    summary_call = function(specs) {
+      do.call(SimEngine::summarize, c(list(sim = sim), specs))
+    }
     
-    # bias
-    bias_Q_km = sim %>% SimEngine::summarize(
-      list(stat = "bias", estimate = "Q_est_km_plc", truth = "Q_true_plc", name = "bias_km_plc"),
-      list(stat = "bias", estimate = "Q_est_km_vac", truth = "Q_true_vac", name = "bias_km_vac"),
-      list(stat = "bias", estimate = "Q_est_km_med", truth = "Q_true_med", name = "bias_km_med"),
-      list(stat = "bias", estimate = "Q_est_km_plc_pro", truth = "Q_true_plc_pro", name = "bias_km_plc_pro"),
-      list(stat = "bias", estimate = "Q_est_km_vac_pro", truth = "Q_true_vac_pro", name = "bias_km_vac_pro"),
-      list(stat = "bias", estimate = "Q_est_km_med_pro", truth = "Q_true_med_pro", name = "bias_km_med_pro")
-    )
-    bias_Q_two = sim %>% SimEngine::summarize(
-      list(stat = "bias", estimate = "Q_est_two_plc", truth = "Q_true_plc", name = "bias_twophase_plc"),
-      list(stat = "bias", estimate = "Q_est_two_vac", truth = "Q_true_vac", name = "bias_twophase_vac"),
-      list(stat = "bias", estimate = "Q_est_two_med", truth = "Q_true_med", name = "bias_twophase_med"),
-      list(stat = "bias", estimate = "Q_est_two_plc_plus", truth = "Q_true_plc", name = "bias_twophase_plc_plus"),
-      list(stat = "bias", estimate = "Q_est_two_vac_plus", truth = "Q_true_vac", name = "bias_twophase_vac_plus"),
-      list(stat = "bias", estimate = "Q_est_two_med_plus", truth = "Q_true_med", name = "bias_twophase_med_plus"),
-      list(stat = "bias", estimate = "Q_est_two_plc_pro", truth = "Q_true_plc_pro", name = "bias_twophase_plc_pro"),
-      list(stat = "bias", estimate = "Q_est_two_vac_pro", truth = "Q_true_vac_pro", name = "bias_twophase_vac_pro"),
-      list(stat = "bias", estimate = "Q_est_two_med_pro", truth = "Q_true_med_pro", name = "bias_twophase_med_pro")
-    )
-    # bias percentage
-    bias_Q_pct_km = sim %>% SimEngine::summarize(
-      list(stat = "mean", x = "km_pctg_plc", name = "bias_km_pct_plc"),
-      list(stat = "mean", x = "km_pctg_vac", name = "bias_km_pct_vac"),
-      list(stat = "mean", x = "km_pctg_med", name = "bias_km_pct_med"),
-      list(stat = "mean", x = "km_pctg_plc_pro", name = "bias_km_pct_plc_pro"),
-      list(stat = "mean", x = "km_pctg_vac_pro", name = "bias_km_pct_vac_pro"),
-      list(stat = "mean", x = "km_pctg_med_pro", name = "bias_km_pct_med_pro")
-    )
-    bias_Q_pct_two = sim %>% SimEngine::summarize(
-      list(stat = "mean", x = "two_pctg_plc", name = "bias_twophase_pct_plc"),
-      list(stat = "mean", x = "two_pctg_vac", name = "bias_twophase_pct_vac"),
-      list(stat = "mean", x = "two_pctg_med", name = "bias_twophase_pct_med"),
-      list(stat = "mean", x = "two_pctg_plc_plus", name = "bias_twophase_pct_plc_plus"),
-      list(stat = "mean", x = "two_pctg_vac_plus", name = "bias_twophase_pct_vac_plus"),
-      list(stat = "mean", x = "two_pctg_med_plus", name = "bias_twophase_pct_med_plus"),
-      list(stat = "mean", x = "two_pctg_plc_pro", name = "bias_twophase_pct_plc_pro"),
-      list(stat = "mean", x = "two_pctg_vac_pro", name = "bias_twophase_pct_vac_pro"),
-      list(stat = "mean", x = "two_pctg_med_pro", name = "bias_twophase_pct_med_pro")
-    )
+    mean_specs = list()
+    se_bs_specs = list()
+    se_if_specs = list()
+    bias_specs = list()
+    bias_pct_specs = list()
+    coverage_bs_specs = list()
+    coverage_if_specs = list()
     
-    # variance in average
-    var_km = sim %>% SimEngine::summarize(
-      list(stat = "mean", x = "var_km_plc_boot", name = "var_km_plc_boot"),
-      list(stat = "mean", x = "var_km_vac_boot", name = "var_km_vac_boot"),
-      list(stat = "mean", x = "var_km_plc_boot_pro", name = "var_km_plc_boot_pro"),
-      list(stat = "mean", x = "var_km_vac_boot_pro", name = "var_km_vac_boot_pro")
-    )
-    var_two = sim %>% SimEngine::summarize(
-      list(stat = "mean", x = "var_two_plc_boot", name = "var_two_plc_boot"),
-      list(stat = "mean", x = "var_two_vac_boot", name = "var_two_vac_boot"),
-      list(stat = "mean", x = "var_two_med_boot", name = "var_two_med_boot"),
-      list(stat = "mean", x = "var_two_plc_boot_plus", name = "var_two_plc_boot_plus"),
-      list(stat = "mean", x = "var_two_vac_boot_plus", name = "var_two_vac_boot_plus"),
-      list(stat = "mean", x = "var_two_med_boot_plus", name = "var_two_med_boot_plus"),
-      list(stat = "mean", x = "var_two_plc_boot_pro", name = "var_two_plc_boot_pro"),
-      list(stat = "mean", x = "var_two_vac_boot_pro", name = "var_two_vac_boot_pro"),
-      list(stat = "mean", x = "var_two_med_boot_pro", name = "var_two_med_boot_pro")
-    )
+    for (j in combos) {
+      for (i in effects) {
+        estimate = paste0(i, "_n_", j)
+        truth = truth_name(i, j)
+        # mean of true values and estimators
+        mean_specs[[length(mean_specs) + 1]] = list(stat = "mean", x = truth, name = paste0("mean_true_", i, "_", j))
+        mean_specs[[length(mean_specs) + 1]] = list(stat = "mean", x = estimate, name = paste0("mean_est_", i, "_", j))
+        # mean bootstrap se (all 8 combinations)
+        se_bs_specs[[length(se_bs_specs) + 1]] = list(stat = "mean", x = paste0(i, "_se_bs_", j), name = paste0("se_bs_", i, "_", j))
+        # bias
+        bias_specs[[length(bias_specs) + 1]] = list(stat = "bias", estimate = estimate, truth = truth, name = paste0("bias_", i, "_", j))
+        # bias percentage
+        bias_pct_specs[[length(bias_pct_specs) + 1]] = list(stat = "mean", x = paste0(i, "_bias_pct_", j), name = paste0("bias_pct_", i, "_", j))
+        # bootstrap coverage (all 8 combinations)
+        coverage_bs_specs[[length(coverage_bs_specs) + 1]] = list(stat = "coverage", lower = paste0(i, "_low_bs_", j), upper = paste0(i, "_up_bs_", j), truth = truth, name = paste0("cov_bs_", i, "_", j))
+        # influence function exists only for the 4 X-only combos
+        if (j %in% raw_combos) {
+          se_if_specs[[length(se_if_specs) + 1]] = list(stat = "mean", x = paste0(i, "_se_if_", j), name = paste0("se_if_", i, "_", j))
+          coverage_if_specs[[length(coverage_if_specs) + 1]] = list(stat = "coverage", lower = paste0(i, "_low_if_", j), upper = paste0(i, "_up_if_", j), truth = truth, name = paste0("cov_if_", i, "_", j))
+        }
+      }
+    }
     
-    # coverage
-    coverage_km = sim %>% SimEngine::summarize(
-      list(stat = "coverage", lower = "km_plc_low", upper = "km_plc_up", truth = "Q_true_plc", name = "cov_km_plc"),
-      list(stat = "coverage", lower = "km_vac_low", upper = "km_vac_up", truth = "Q_true_vac", name = "cov_km_vac"),
-      list(stat = "coverage", lower = "km_plc_low_pro", upper = "km_plc_up_pro", truth = "Q_true_plc_pro", name = "cov_km_plc_pro"),
-      list(stat = "coverage", lower = "km_vac_low_pro", upper = "km_vac_up_pro", truth = "Q_true_vac_pro", name = "cov_km_vac_pro")
-    )
-    coverage_two = sim %>% SimEngine::summarize(
-      list(stat = "coverage", lower = "two_plc_low", upper = "two_plc_up", truth = "Q_true_plc", name = "cov_twophase_plc"),
-      list(stat = "coverage", lower = "two_vac_low", upper = "two_vac_up", truth = "Q_true_vac", name = "cov_twophase_vac"),
-      list(stat = "coverage", lower = "two_med_low", upper = "two_med_up", truth = "Q_true_med", name = "cov_twophase_med"),
-      list(stat = "coverage", lower = "two_plc_low_plus", upper = "two_plc_up_plus", truth = "Q_true_plc", name = "cov_twophase_plc_plus"),
-      list(stat = "coverage", lower = "two_vac_low_plus", upper = "two_vac_up_plus", truth = "Q_true_vac", name = "cov_twophase_vac_plus"),
-      list(stat = "coverage", lower = "two_med_low_plus", upper = "two_med_up_plus", truth = "Q_true_med", name = "cov_twophase_med_plus"),
-      list(stat = "coverage", lower = "two_plc_low_pro", upper = "two_plc_up_pro", truth = "Q_true_plc_pro", name = "cov_twophase_plc_pro"),
-      list(stat = "coverage", lower = "two_vac_low_pro", upper = "two_vac_up_pro", truth = "Q_true_vac_pro", name = "cov_twophase_vac_pro"),
-      list(stat = "coverage", lower = "two_med_low_pro", upper = "two_med_up_pro", truth = "Q_true_med_pro", name = "cov_twophase_med_pro")
+    mean_results = summary_call(mean_specs)
+    standard_error_bs = summary_call(se_bs_specs)
+    standard_error_if = summary_call(se_if_specs)
+    bias = summary_call(bias_specs)
+    bias_percentage = summary_call(bias_pct_specs)
+    coverage_bs = summary_call(coverage_bs_specs)
+    coverage_if = summary_call(coverage_if_specs)
+    
+    summary_results = list(
+      mean = mean_results,
+      standard_error_bs = standard_error_bs,
+      standard_error_if = standard_error_if,
+      bias = bias,
+      bias_percentage = bias_percentage,
+      coverage_bs = coverage_bs,
+      coverage_if = coverage_if
     )
   },
   
   cluster_config = list(js = "slurm")
 )
+
+
+
+# save results
+# saveRDS(bias, file = "Evaluation/version_1/vaccine_bias.rds")
+# saveRDS(bias_percentage, file = "Evaluation/version_1/vaccine_bias_percentage.rds")
+# saveRDS(coverage, file = "Evaluation/version_1/vaccine_coverage.rds")
+# saveRDS(estimators, file = "Evaluation/version_1/vaccine_estimaters.rds")
+# saveRDS(standard_error, file = "Evaluation/version_1/vaccine_standard_error.rds")
+# saveRDS(true_values, file = "Evaluation/version_1/vaccine_true_values.rds")
 
 
 

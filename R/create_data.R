@@ -1,9 +1,10 @@
+
 create_data = function(n, surv_type, surv_params, sample_type, ind = FALSE) {
   # id
   id = seq(1, n)
   
   # treatment
-  treat = sample(0:1, n, replace = TRUE, prob = c(0.3, 0.7))
+  treat = sample(0:1, n, replace = TRUE, prob = c(0.5, 0.5))
   
   # X1
   X1 = rbinom(n = n, size = 1, prob = 0.5)
@@ -20,10 +21,10 @@ create_data = function(n, surv_type, surv_params, sample_type, ind = FALSE) {
   
   # survival time
   U = runif(n = n)
-  if (ind == "TRUE") {
-    V = 0.5*X1 + 0.7*X2 - 2*S - 0.5*I(S == 0)*treat # add treat to ensure no S in the placebo group
+  if (ind == TRUE) {
+    V = 0.5*X1 + 0.7*X2 - 2*S - 0.5*treat - 0.5*I(S == 0)*treat # add treat to ensure no S in the placebo group
   } else {
-    V = 0.5*X1 + 0.7*X2 - 2*S
+    V = 0.5*X1 + 0.7*X2 - 0.5*treat - 2*S
   }
   if (surv_type == "Exponential") {
     lambda = surv_params
@@ -63,8 +64,7 @@ create_data = function(n, surv_type, surv_params, sample_type, ind = FALSE) {
   }
   
   # temporary dataframe
-  data = data.frame("id" = id, "treat" = treat, "Y" = Y, "delta" = delta, "S" = S, "X1" = X1, "X2" = X2, "Z" = Z,
-                    "C" = C, "t" = t)
+  data = data.frame("id" = id, "treat" = treat, "Y" = Y, "delta" = delta, "S" = S, "X1" = X1, "X2" = X2, "Z" = Z, "C" = C, "t" = t)
   
   # using ipwpoint function to generate inverse probability weights
   # if (sample_type == "iid") {

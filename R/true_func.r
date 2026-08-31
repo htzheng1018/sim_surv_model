@@ -20,12 +20,12 @@ true_func = function(surv_type, surv_params, t, dat, method, ind = FALSE) {
   if (method == "sample") {
     if (ind == TRUE) {
       unprop_plc = exp(0.5*dat_plc$X1 + 0.7*dat_plc$X2)
-      unprop_vac = exp(0.5*dat_vac$X1 + 0.7*dat_vac$X2 - 2*dat_vac$S - 0.5*dat_vac$`I(S == 0)TRUE`)
-      unprop_med = exp(0.5*dat_vac$X1 + 0.7*dat_vac$X2 - 2*0 - 0.5*1)
+      unprop_vac = exp(0.5*dat_vac$X1 + 0.7*dat_vac$X2 - 0.5*dat_vac$treat - 2*dat_vac$S - 0.5*dat_vac$`I(S == 0)TRUE`)
+      unprop_med = exp(0.5*dat_vac$X1 + 0.7*dat_vac$X2 - 0.5*dat_vac$treat - 2*0 - 0.5*1)
     } else if (ind == FALSE) {
       unprop_plc = exp(0.5*dat_plc$X1 + 0.7*dat_plc$X2)
-      unprop_vac = exp(0.5*dat_vac$X1 + 0.7*dat_vac$X2 - 2*dat_vac$S)
-      unprop_med = exp(0.5*dat_vac$X1 + 0.7*dat_vac$X2 - 2*0)
+      unprop_vac = exp(0.5*dat_vac$X1 + 0.7*dat_vac$X2 - 0.5*dat_vac$treat - 2*dat_vac$S)
+      unprop_med = exp(0.5*dat_vac$X1 + 0.7*dat_vac$X2 - 0.5*dat_vac$treat - 2*0)
     }
     # placebo group
     Q_p = mean(Q_0 ^ (unprop_plc))
@@ -55,7 +55,7 @@ true_func = function(surv_type, surv_params, t, dat, method, ind = FALSE) {
     if (ind == TRUE) {
       # S = 0 (to avoid integrating the Dirac function)
       integrand1 = function(X1, X2) {
-        unprop = 0.5*X1 + 0.7*X2 - 0.5*1
+        unprop = 0.5*X1 + 0.7*X2 - 0.5*1 - 0.5*1
         Q = Q_0 ^ exp(unprop)
         prob_tmp = 1 / (1 + exp(0.5*X1 + 0.7*X2 + 1))
         result = Q * prob_tmp
@@ -65,7 +65,7 @@ true_func = function(surv_type, surv_params, t, dat, method, ind = FALSE) {
       Q_01 = integrate(function(X2) integrand1(X1 = 1, X2), lower = 0, upper = 1)$value
       # S > 0
       integrand2 = function(X1, X2, S) {
-        unprop = 0.5*X1 + 0.7*X2 - 2*S - 0.5*0
+        unprop = 0.5*X1 + 0.7*X2 - 0.5*1 - 2*S - 0.5*0
         Q = Q_0 ^ exp(unprop)
         # Q = pmax(Q_0 ^ exp(unprop), 1e-2)
         prob_tmp = 1 / (1 + exp(0.5*X1 + 0.7*X2 + 1))
@@ -79,7 +79,7 @@ true_func = function(surv_type, surv_params, t, dat, method, ind = FALSE) {
     } else if (ind == FALSE){
       # S = 0 (to avoid integrating the Dirac function)
       integrand1 = function(X1, X2) {
-        unprop = 0.5*X1 + 0.7*X2
+        unprop = 0.5*X1 + 0.7*X2 - 0.5*1
         Q = Q_0 ^ exp(unprop)
         prob_tmp = 1 / (1 + exp(0.5*X1 + 0.7*X2 + 1))
         result = Q * prob_tmp
@@ -89,7 +89,7 @@ true_func = function(surv_type, surv_params, t, dat, method, ind = FALSE) {
       Q_01 = integrate(function(X2) integrand1(X1 = 1, X2), lower = 0, upper = 1)$value
       # S > 0
       integrand2 = function(X1, X2, S) {
-        unprop = 0.5*X1 + 0.7*X2 - 2*S
+        unprop = 0.5*X1 + 0.7*X2 - 0.5*1 - 2*S
         Q = Q_0 ^ exp(unprop)
         # Q = pmax(Q_0 ^ exp(unprop), 1e-2)
         prob_tmp = 1 / (1 + exp(0.5*X1 + 0.7*X2 + 1))
@@ -107,15 +107,15 @@ true_func = function(surv_type, surv_params, t, dat, method, ind = FALSE) {
       integrand = function(u) {
         return(Q_0 ^ exp(u))
       }
-      Q_1 = integrate(integrand, lower = -0.5, upper = 0.2)$value
-      Q_2 = integrate(integrand, lower = 0, upper = 0.7)$value
+      Q_1 = integrate(integrand, lower =  - 0.5*1 - 0.5, upper =  - 0.5*1 + 0.2)$value
+      Q_2 = integrate(integrand, lower =  - 0.5*1, upper =  - 0.5*1 + 0.7)$value
       Q_m = (5/7)*(Q_1 + Q_2)
     } else if (ind == FALSE) {
       integrand = function(u) {
         return(Q_0 ^ exp(u))
       }
-      Q_1 = integrate(integrand, lower = 0, upper = 0.7)$value
-      Q_2 = integrate(integrand, lower = 0.5, upper = 1.2)$value
+      Q_1 = integrate(integrand, lower =  - 0.5*1, upper =  - 0.5*1 + 0.7)$value
+      Q_2 = integrate(integrand, lower =  - 0.5*1 + 0.5, upper =  - 0.5*1 + 1.2)$value
       Q_m = (5/7)*(Q_1 + Q_2)
     }
     r_m = 1 - Q_m
