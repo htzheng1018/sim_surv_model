@@ -1,6 +1,4 @@
 
-
-
 true_func = function(surv_type, surv_params, t, dat, method, ind = FALSE) {
   if (ind == TRUE) {
     dat$`I(S == 0)TRUE` = ifelse(dat$S == 0, 1, 0)

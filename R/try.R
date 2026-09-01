@@ -59,6 +59,8 @@ run_on_cluster(
     )
     
     sim %<>% set_script(function() {
+      num_boot = 1000
+      
       # normal data and normal model, without the indicator
       dat_org = create_data(L$n, L$surv_time$surv_type, L$surv_time$surv_params, "complex") # phase one data (original)
       dat_ind = create_data(L$n, L$surv_time$surv_type, L$surv_time$surv_params, "complex", ind = TRUE) # phase one data with biomarker indicator
@@ -81,10 +83,10 @@ run_on_cluster(
       if_ind = pkg_if(dat_ind, t_ind)
       
       # cox estimator with influence-function based inference
-      val_n_tps_org = est_med(dat_org, t_org, edge = FALSE, boots = 1000, if_result = if_org$tps)
-      val_n_tps_ind = est_med(dat_ind, t_ind, edge = FALSE, boots = 1000, if_result = if_org$tps)
-      val_n_flx_org = est_med(dat_org, t_org, edge = TRUE, boots = 1000, if_result = if_org$flx)
-      val_n_flx_ind = est_med(dat_ind, t_ind, edge = TRUE, boots = 1000, if_result = if_org$flx)
+      val_n_tps_org = est_med(dat_org, t_org, edge = FALSE, boots = num_boot, if_result = if_org$tps)
+      val_n_tps_ind = est_med(dat_ind, t_ind, edge = FALSE, boots = num_boot, if_result = if_ind$tps)
+      val_n_flx_org = est_med(dat_org, t_org, edge = TRUE, boots = num_boot, if_result = if_org$flx)
+      val_n_flx_ind = est_med(dat_ind, t_ind, edge = TRUE, boots = num_boot, if_result = if_ind$flx)
       
       # split results into X-only and X+S tables
       res_tps_org_raw = split_med_result(val_n_tps_org$result, "raw")
