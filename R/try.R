@@ -47,14 +47,14 @@ run_on_cluster(
     
     sim %<>% set_levels(
       # n = c(500, 1000, 2000, 4000, 8000),
-      n = c(500, 1000),
+      n = 8000,
       surv_time = list(
         "Exp" = list(surv_type = "Exponential", surv_params = 2e-2),
         "Gom" = list(surv_type = "Gompertz", surv_params = c(0.1, 1e-3))
       )
     )
     
-    sim %<>% set_config(num_sim = 100, n_cores = 13, seed = 1018,
+    sim %<>% set_config(num_sim = 5, parallel = TRUE, n_cores = 13, seed = 1018,
                         packages = c("survival", "parallel", "truncnorm", "pracma", "dplyr", "vaccine")
     )
     
