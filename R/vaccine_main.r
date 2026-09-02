@@ -3,13 +3,37 @@
 #### set up ####
 ################
 
+required_packages = c("SimEngine", "kableExtra", "survival", "parallel", "truncnorm", "pracma", "dplyr", "magrittr")
+new_packages = required_packages[!(required_packages %in% installed.packages()[,"Package"])]
+if (length(new_packages) > 0) {
+  install.packages(new_packages, repos = "http://cran.r-project.org")
+}
+
 # load SimEngine + functions
 {
   library(SimEngine)
+  library(vaccine)
   library(kableExtra)
   source("R/create_data.R", local = T)
   source("R/true_func.r", local = T)
   source("R/est_med.r", local = T)
+}
+
+# split the large result into the X-only and X+S versions
+split_med_result = function(result, version = c("raw", "xs")) {
+  version = match.arg(version)
+  columns = if (version == "raw") {
+    c("NIE_one", "NDE", "PM_one")
+  } else if (version == "xs") {
+    c("NIE_two", "NDE", "PM_two")
+  }
+  out = result[, columns, drop = FALSE]
+  colnames(out) = c("NIE", "NDE", "PM")
+  # if is not calculated for the X+S version
+  if (version == "xs") {
+    out[c("se_if", "low_if", "up_if"), ] = NA_real_
+  }
+  return(out)
 }
 
 
@@ -20,6 +44,7 @@
 
 # start time
 start_time = Sys.time()
+print(start_time)
 
 # set up multi-cores
 run_on_cluster(
@@ -35,14 +60,16 @@ run_on_cluster(
       )
     )
     
-    sim %<>% set_config(num_sim = 1000, n_cores = 13, seed = 1018,
-                        packages = c("survival", "parallel", "truncnorm", "devtools", "ipw", "pracma")
+    sim %<>% set_config(num_sim = 1000, parallel = TRUE, n_cores = 13, seed = 1018,
+                        packages = c("survival", "parallel", "truncnorm", "pracma", "dplyr", "vaccine")
     )
     
     sim %<>% set_script(function() {
+      num_boot = 1000
+      
       # normal data and normal model, without the indicator
       dat_org = create_data(L$n, L$surv_time$surv_type, L$surv_time$surv_params, "complex") # phase one data (original)
-      dat_ind = create_data(L$n, L$surv_time$surv_type, L$surv_time$surv_params, "complex", ind = T) # phase one data with biomarker indicator
+      dat_ind = create_data(L$n, L$surv_time$surv_type, L$surv_time$surv_params, "complex", ind = TRUE) # phase one data with biomarker indicator
       
       # choose a specific time
       if (L$surv_time$surv_type == "Exponential") {
@@ -57,102 +84,87 @@ run_on_cluster(
       val_0_org = true_func(L$surv_time$surv_type, L$surv_time$surv_params, t_org, dat_org, "math")
       val_0_ind = true_func(L$surv_time$surv_type, L$surv_time$surv_params, t_ind, dat_ind, "math", ind = T)
       
-      # two-phase sampling estimator and flexible estimator
-      val_n_tps_org = est_med(dat_org, t_org)$result
-      val_n_tps_ind = est_med(dat_ind, t_ind)$result
-      val_n_flx_org = est_med(dat_org, t_org, edge = T)$result
-      val_n_flx_ind = est_med(dat_ind, t_ind, edge = T)$result
+      # influence function
+      if_org = pkg_if(dat_org, t_org)
+      if_ind = pkg_if(dat_ind, t_ind)
+      
+      # cox estimator with influence-function based inference
+      val_n_tps_org = est_med(dat_org, t_org, edge = FALSE, boots = num_boot, if_result = if_org$tps)
+      val_n_tps_ind = est_med(dat_ind, t_ind, edge = FALSE, boots = num_boot, if_result = if_ind$tps)
+      val_n_flx_org = est_med(dat_org, t_org, edge = TRUE, boots = num_boot, if_result = if_org$flx)
+      val_n_flx_ind = est_med(dat_ind, t_ind, edge = TRUE, boots = num_boot, if_result = if_ind$flx)
+      
+      # split results into X-only and X+S tables
+      res_tps_org_raw = split_med_result(val_n_tps_org$result, "raw")
+      res_tps_org_xs = split_med_result(val_n_tps_org$result, "xs")
+      res_tps_ind_raw = split_med_result(val_n_tps_ind$result, "raw")
+      res_tps_ind_xs = split_med_result(val_n_tps_ind$result, "xs")
+      res_flx_org_raw = split_med_result(val_n_flx_org$result, "raw")
+      res_flx_org_xs = split_med_result(val_n_flx_org$result, "xs")
+      res_flx_ind_raw = split_med_result(val_n_flx_ind$result, "raw")
+      res_flx_ind_xs = split_med_result(val_n_flx_ind$result, "xs")
+      small_results = list(
+        tps_org_raw = res_tps_org_raw,
+        tps_org_xs = res_tps_org_xs,
+        tps_ind_raw = res_tps_ind_raw,
+        tps_ind_xs = res_tps_ind_xs,
+        flx_org_raw = res_flx_org_raw,
+        flx_org_xs = res_flx_org_xs,
+        flx_ind_raw = res_flx_ind_raw,
+        flx_ind_xs = res_flx_ind_xs
+      )
       
       # results
-      return(list(
-        # true values
-        "NIE_0_org" = val_0_org["NIE", "true"],
-        "NIE_0_ind" = val_0_ind["NIE", "true"],
-        "NDE_0_org" = val_0_org["NDE", "true"],
-        "NDE_0_ind" = val_0_ind["NDE", "true"],
-        "PM_0_org" = val_0_org["PM", "true"],
-        "PM_0_ind" = val_0_ind["PM", "true"],
+      result = list(
+        NIE_0_org = unname(val_0_org["NIE", "true"]),
+        NIE_0_ind = unname(val_0_ind["NIE", "true"]),
+        NDE_0_org = unname(val_0_org["NDE", "true"]),
+        NDE_0_ind = unname(val_0_ind["NDE", "true"]),
+        PM_0_org = unname(val_0_org["PM", "true"]),
+        PM_0_ind = unname(val_0_ind["PM", "true"])
+      )
+      for (i in names(small_results)) {
+        data_type = if (grepl("_org_", i)) {
+          "org"
+        } else {
+          "ind"
+        }
+        truth = if (data_type == "org") {
+          val_0_org
+        } else {
+          val_0_ind
+        }
+        result_table = small_results[[i]]
         
-        # estimators
-        "NIE_n_tps_org" = val_n_tps_org["NIE", "estimate"],
-        "NIE_n_tps_ind" = val_n_tps_ind["NIE", "estimate"],
-        "NDE_n_tps_org" = val_n_tps_org["NDE", "estimate"],
-        "NDE_n_tps_ind" = val_n_tps_ind["NDE", "estimate"],
-        "PM_n_tps_org" = val_n_tps_org["PM", "estimate"],
-        "PM_n_tps_ind" = val_n_tps_ind["PM", "estimate"],
-        "NIE_n_flx_org" = val_n_flx_org["NIE", "estimate"],
-        "NIE_n_flx_ind" = val_n_flx_ind["NIE", "estimate"],
-        "NDE_n_flx_org" = val_n_flx_org["NDE", "estimate"],
-        "NDE_n_flx_ind" = val_n_flx_ind["NDE", "estimate"],
-        "PM_n_flx_org" = val_n_flx_org["PM", "estimate"],
-        "PM_n_flx_ind" = val_n_flx_ind["PM", "estimate"],
-        
-        # standard errors
-        "NIE_se_tps_org" = val_n_tps_org["NIE", "se"],
-        "NIE_se_tps_ind" = val_n_tps_ind["NIE", "se"],
-        "NDE_se_tps_org" = val_n_tps_org["NDE", "se"],
-        "NDE_se_tps_ind" = val_n_tps_ind["NDE", "se"],
-        "PM_se_tps_org" = val_n_tps_org["PM", "se"],
-        "PM_se_tps_ind" = val_n_tps_ind["PM", "se"],
-        "NIE_se_flx_org" = val_n_flx_org["NIE", "se"],
-        "NIE_se_flx_ind" = val_n_flx_ind["NIE", "se"],
-        "NDE_se_flx_org" = val_n_flx_org["NDE", "se"],
-        "NDE_se_flx_ind" = val_n_flx_ind["NDE", "se"],
-        "PM_se_flx_org" = val_n_flx_org["PM", "se"],
-        "PM_se_flx_ind" = val_n_flx_ind["PM", "se"],
-        
-        # bias percentage
-        "NIE_bias_tps_org" = (val_n_tps_org["NIE", "estimate"] - val_0_org["NIE", "true"]) / val_0_org["NIE", "true"] * 100,
-        "NIE_bias_tps_ind" = (val_n_tps_ind["NIE", "estimate"] - val_0_ind["NIE", "true"]) / val_0_ind["NIE", "true"] * 100,
-        "NDE_bias_tps_org" = (val_n_tps_org["NDE", "estimate"] - val_0_org["NDE", "true"]) / val_0_org["NDE", "true"] * 100,
-        "NDE_bias_tps_ind" = (val_n_tps_ind["NDE", "estimate"] - val_0_ind["NDE", "true"]) / val_0_ind["NDE", "true"] * 100,
-        "PM_bias_tps_org" = (val_n_tps_org["PM", "estimate"] - val_0_org["PM", "true"]) / val_0_org["PM", "true"] * 100,
-        "PM_bias_tps_ind" = (val_n_tps_ind["PM", "estimate"] - val_0_ind["PM", "true"]) / val_0_ind["PM", "true"] * 100,
-        "NIE_bias_flx_org" = (val_n_flx_org["NIE", "estimate"] - val_0_org["NIE", "true"]) / val_0_org["NIE", "true"] * 100,
-        "NIE_bias_flx_ind" = (val_n_flx_ind["NIE", "estimate"] - val_0_ind["NIE", "true"]) / val_0_ind["NIE", "true"] * 100,
-        "NDE_bias_flx_org" = (val_n_flx_org["NDE", "estimate"] - val_0_org["NDE", "true"]) / val_0_org["NDE", "true"] * 100,
-        "NDE_bias_flx_ind" = (val_n_flx_ind["NDE", "estimate"] - val_0_ind["NDE", "true"]) / val_0_ind["NDE", "true"] * 100,
-        "PM_bias_flx_org" = (val_n_flx_org["PM", "estimate"] - val_0_org["PM", "true"]) / val_0_org["PM", "true"] * 100,
-        "PM_bias_flx_ind" = (val_n_flx_ind["PM", "estimate"] - val_0_ind["PM", "true"]) / val_0_ind["PM", "true"] * 100,
-        
-        # 95% CI
-        "NIE_low_tps_org" = val_n_tps_org["NIE", "low"],
-        "NIE_low_tps_ind" = val_n_tps_ind["NIE", "low"],
-        "NIE_up_tps_org" = val_n_tps_org["NIE", "up"],
-        "NIE_up_tps_ind" = val_n_tps_ind["NIE", "up"],
-        "NDE_low_tps_org" = val_n_tps_org["NDE", "low"],
-        "NDE_low_tps_ind" = val_n_tps_ind["NDE", "low"],
-        "NDE_up_tps_org" = val_n_tps_org["NDE", "up"],
-        "NDE_up_tps_ind" = val_n_tps_ind["NDE", "up"],
-        "PM_low_tps_org" = val_n_tps_org["PM", "low"],
-        "PM_low_tps_ind" = val_n_tps_ind["PM", "low"],
-        "PM_up_tps_org" = val_n_tps_org["PM", "up"],
-        "PM_up_tps_ind" = val_n_tps_ind["PM", "up"],
-        "NIE_low_flx_org" = val_n_flx_org["NIE", "low"],
-        "NIE_low_flx_ind" = val_n_flx_ind["NIE", "low"],
-        "NIE_up_flx_org" = val_n_flx_org["NIE", "up"],
-        "NIE_up_flx_ind" = val_n_flx_ind["NIE", "up"],
-        "NDE_low_flx_org" = val_n_flx_org["NDE", "low"],
-        "NDE_low_flx_ind" = val_n_flx_ind["NDE", "low"],
-        "NDE_up_flx_org" = val_n_flx_org["NDE", "up"],
-        "NDE_up_flx_ind" = val_n_flx_ind["NDE", "up"],
-        "PM_low_flx_org" = val_n_flx_org["PM", "low"],
-        "PM_low_flx_ind" = val_n_flx_ind["PM", "low"],
-        "PM_up_flx_org" = val_n_flx_org["PM", "up"],
-        "PM_up_flx_ind" = val_n_flx_ind["PM", "up"],
-        
-        # other complex results
-        ".complex" = list(
-          "dat_org" = dat_org,
-          "dat_ind" = dat_ind,
-          "val_0_org" = val_0_org,
-          "val_0_ind" = val_0_ind,
-          "val_n_tps_org" = val_n_tps_org,
-          "val_n_tps_ind" = val_n_tps_ind,
-          "val_n_flx_org" = val_n_flx_org,
-          "val_n_flx_ind" = val_n_flx_ind
-        )
-      ))
+        for (j in c("NIE", "NDE", "PM")) {
+          estimate = result_table["estimate", j]
+          true_value = truth[j, "true"]
+          # estimator
+          result[[paste0(j, "_n_", i)]] = unname(estimate)
+          # se from bootstrap or if
+          result[[paste0(j, "_se_bs_", i)]] = unname(result_table["se_bs", j])
+          result[[paste0(j, "_se_if_", i)]] = unname(result_table["se_if", j])
+          # bias percentage
+          result[[paste0(j, "_bias_pct_", i)]] = unname((estimate - true_value) / true_value * 100)
+          # ci from bootstrap or if
+          for (method in c("bs", "if")) {
+            result[[paste0(j, "_low_", method, "_", i)]] = unname(result_table[paste0("low_", method), j])
+            result[[paste0(j, "_up_", method, "_", i)]] = unname(result_table[paste0("up_", method), j])
+          }
+        }
+      }
+      result[[".complex"]] = list(
+        dat_org = dat_org,
+        dat_ind = dat_ind,
+        val_0_org = val_0_org,
+        val_0_ind = val_0_ind,
+        val_n_tps_org = val_n_tps_org,
+        val_n_tps_ind = val_n_tps_ind,
+        val_n_flx_org = val_n_flx_org,
+        val_n_flx_ind = val_n_flx_ind
+      )
+      
+      return(result)
     })
   },
   
@@ -162,107 +174,77 @@ run_on_cluster(
   },
   
   last = {
-    # mean
-    true_values = sim %>% SimEngine::summarize(
-      list(stat = "mean", x = "NIE_0_org"),
-      list(stat = "mean", x = "NIE_0_ind"),
-      list(stat = "mean", x = "NDE_0_org"),
-      list(stat = "mean", x = "NDE_0_ind"),
-      list(stat = "mean", x = "PM_0_org"),
-      list(stat = "mean", x = "PM_0_ind")
-    )
-    estimators = sim %>% SimEngine::summarize(
-      list(stat = "mean", x = "NIE_n_tps_org"),
-      list(stat = "mean", x = "NIE_n_tps_ind"),
-      list(stat = "mean", x = "NDE_n_tps_org"),
-      list(stat = "mean", x = "NDE_n_tps_ind"),
-      list(stat = "mean", x = "PM_n_tps_org"),
-      list(stat = "mean", x = "PM_n_tps_ind"),
-      list(stat = "mean", x = "NIE_n_flx_org"),
-      list(stat = "mean", x = "NIE_n_flx_ind"),
-      list(stat = "mean", x = "NDE_n_flx_org"),
-      list(stat = "mean", x = "NDE_n_flx_ind"),
-      list(stat = "mean", x = "PM_n_flx_org"),
-      list(stat = "mean", x = "PM_n_flx_ind")
-    )
+    combos = c("tps_org_raw", "tps_org_xs", "tps_ind_raw", "tps_ind_xs", "flx_org_raw", "flx_org_xs", "flx_ind_raw", "flx_ind_xs")
+    raw_combos = combos[grepl("_raw$", combos)]
+    effects = c("NIE", "NDE", "PM")
+    truth_name = function(i, j) {
+      data_type = if (grepl("_org_", j)) {
+        "org"
+      } else {
+        "ind"
+      }
+      paste0(i, "_0_", data_type)
+    }
+    summary_call = function(specs) {
+      do.call(SimEngine::summarize, c(list(sim = sim), specs))
+    }
     
-    # standard error
-    standard_error = sim %>% SimEngine::summarize(
-      list(stat = "mean", x = "NIE_se_tps_org"),
-      list(stat = "mean", x = "NIE_se_tps_ind"),
-      list(stat = "mean", x = "NDE_se_tps_org"),
-      list(stat = "mean", x = "NDE_se_tps_ind"),
-      list(stat = "mean", x = "PM_se_tps_org"),
-      list(stat = "mean", x = "PM_se_tps_ind"),
-      list(stat = "mean", x = "NIE_se_flx_org"),
-      list(stat = "mean", x = "NIE_se_flx_ind"),
-      list(stat = "mean", x = "NDE_se_flx_org"),
-      list(stat = "mean", x = "NDE_se_flx_ind"),
-      list(stat = "mean", x = "PM_se_flx_org"),
-      list(stat = "mean", x = "PM_se_flx_ind")
-    )
+    mean_specs = list()
+    se_bs_specs = list()
+    se_if_specs = list()
+    bias_specs = list()
+    bias_pct_specs = list()
+    coverage_bs_specs = list()
+    coverage_if_specs = list()
     
-    # bias
-    bias = sim %>% SimEngine::summarize(
-      list(stat = "bias", estimate = "NIE_n_tps_org", truth = "NIE_0_org", name = "bias_NIE_tps_org"),
-      list(stat = "bias", estimate = "NIE_n_tps_ind", truth = "NIE_0_ind", name = "bias_NIE_tps_ind"),
-      list(stat = "bias", estimate = "NDE_n_tps_org", truth = "NDE_0_org", name = "bias_NDE_tps_org"),
-      list(stat = "bias", estimate = "NDE_n_tps_ind", truth = "NDE_0_ind", name = "bias_NDE_tps_ind"),
-      list(stat = "bias", estimate = "PM_n_tps_org", truth = "PM_0_org", name = "bias_PM_tps_org"),
-      list(stat = "bias", estimate = "PM_n_tps_ind", truth = "PM_0_ind", name = "bias_PM_tps_ind"),
-      list(stat = "bias", estimate = "NIE_n_flx_org", truth = "NIE_0_org", name = "bias_NIE_flx_org"),
-      list(stat = "bias", estimate = "NIE_n_flx_ind", truth = "NIE_0_ind", name = "bias_NIE_flx_ind"),
-      list(stat = "bias", estimate = "NDE_n_flx_org", truth = "NDE_0_org", name = "bias_NDE_flx_org"),
-      list(stat = "bias", estimate = "NDE_n_flx_ind", truth = "NDE_0_ind", name = "bias_NDE_flx_ind"),
-      list(stat = "bias", estimate = "PM_n_flx_org", truth = "PM_0_org", name = "bias_PM_flx_org"),
-      list(stat = "bias", estimate = "PM_n_flx_ind", truth = "PM_0_ind", name = "bias_PM_flx_ind")
-    )
+    for (j in combos) {
+      for (i in effects) {
+        estimate = paste0(i, "_n_", j)
+        truth = truth_name(i, j)
+        # mean of true values and estimators
+        mean_specs[[length(mean_specs) + 1]] = list(stat = "mean", x = truth, name = paste0("mean_true_", i, "_", j))
+        mean_specs[[length(mean_specs) + 1]] = list(stat = "mean", x = estimate, name = paste0("mean_est_", i, "_", j))
+        # mean bootstrap se (all 8 combinations)
+        se_bs_specs[[length(se_bs_specs) + 1]] = list(stat = "mean", x = paste0(i, "_se_bs_", j), name = paste0("se_bs_", i, "_", j))
+        # bias
+        bias_specs[[length(bias_specs) + 1]] = list(stat = "bias", estimate = estimate, truth = truth, name = paste0("bias_", i, "_", j))
+        # bias percentage
+        bias_pct_specs[[length(bias_pct_specs) + 1]] = list(stat = "mean", x = paste0(i, "_bias_pct_", j), name = paste0("bias_pct_", i, "_", j))
+        # bootstrap coverage (all 8 combinations)
+        coverage_bs_specs[[length(coverage_bs_specs) + 1]] = list(stat = "coverage", lower = paste0(i, "_low_bs_", j), upper = paste0(i, "_up_bs_", j), truth = truth, name = paste0("cov_bs_", i, "_", j))
+        # influence function exists only for the 4 X-only combos
+        if (j %in% raw_combos) {
+          se_if_specs[[length(se_if_specs) + 1]] = list(stat = "mean", x = paste0(i, "_se_if_", j), name = paste0("se_if_", i, "_", j))
+          coverage_if_specs[[length(coverage_if_specs) + 1]] = list(stat = "coverage", lower = paste0(i, "_low_if_", j), upper = paste0(i, "_up_if_", j), truth = truth, name = paste0("cov_if_", i, "_", j))
+        }
+      }
+    }
     
-    # bias percentage
-    bias_percentage = sim %>% SimEngine::summarize(
-      list(stat = "mean", x = "NIE_bias_tps_org", name = "bias_pctg_NIE_tps_org"),
-      list(stat = "mean", x = "NIE_bias_tps_ind", name = "bias_pctg_NIE_tps_ind"),
-      list(stat = "mean", x = "NDE_bias_tps_org", name = "bias_pctg_NDE_tps_org"),
-      list(stat = "mean", x = "NDE_bias_tps_ind", name = "bias_pctg_NDE_tps_ind"),
-      list(stat = "mean", x = "PM_bias_tps_org", name = "bias_pctg_PM_tps_org"),
-      list(stat = "mean", x = "PM_bias_tps_ind", name = "bias_pctg_PM_tps_ind"),
-      list(stat = "mean", x = "NIE_bias_flx_org", name = "bias_pctg_NIE_flx_org"),
-      list(stat = "mean", x = "NIE_bias_flx_ind", name = "bias_pctg_NIE_flx_ind"),
-      list(stat = "mean", x = "NDE_bias_flx_org", name = "bias_pctg_NDE_flx_org"),
-      list(stat = "mean", x = "NDE_bias_flx_ind", name = "bias_pctg_NDE_flx_ind"),
-      list(stat = "mean", x = "PM_bias_flx_org", name = "bias_pctg_PM_flx_org"),
-      list(stat = "mean", x = "PM_bias_flx_ind", name = "bias_pctg_PM_flx_ind")
-    )
+    mean_results = summary_call(mean_specs)
+    standard_error_bs = summary_call(se_bs_specs)
+    standard_error_if = summary_call(se_if_specs)
+    bias = summary_call(bias_specs)
+    bias_percentage = summary_call(bias_pct_specs)
+    coverage_bs = summary_call(coverage_bs_specs)
+    coverage_if = summary_call(coverage_if_specs)
     
-    # coverage
-    coverage = sim %>% SimEngine::summarize(
-      list(stat = "coverage", lower = "NIE_low_tps_org", upper = "NIE_up_tps_org", truth = "NIE_0_org", name = "cov_NIE_tps_org"),
-      list(stat = "coverage", lower = "NIE_low_tps_ind", upper = "NIE_up_tps_ind", truth = "NIE_0_ind", name = "cov_NIE_tps_ind"),
-      list(stat = "coverage", lower = "NDE_low_tps_org", upper = "NDE_up_tps_org", truth = "NDE_0_org", name = "cov_NDE_tps_org"),
-      list(stat = "coverage", lower = "NDE_low_tps_ind", upper = "NDE_up_tps_ind", truth = "NDE_0_ind", name = "cov_NDE_tps_ind"),
-      list(stat = "coverage", lower = "PM_low_tps_org", upper = "PM_up_tps_org", truth = "PM_0_org", name = "cov_PM_tps_org"),
-      list(stat = "coverage", lower = "PM_low_tps_ind", upper = "PM_up_tps_ind", truth = "PM_0_ind", name = "cov_PM_tps_ind"),
-      list(stat = "coverage", lower = "NIE_low_flx_org", upper = "NIE_up_flx_org", truth = "NIE_0_org", name = "cov_NIE_flx_org"),
-      list(stat = "coverage", lower = "NIE_low_flx_ind", upper = "NIE_up_flx_ind", truth = "NIE_0_ind", name = "cov_NIE_flx_ind"),
-      list(stat = "coverage", lower = "NDE_low_flx_org", upper = "NDE_up_flx_org", truth = "NDE_0_org", name = "cov_NDE_flx_org"),
-      list(stat = "coverage", lower = "NDE_low_flx_ind", upper = "NDE_up_flx_ind", truth = "NDE_0_ind", name = "cov_NDE_flx_ind"),
-      list(stat = "coverage", lower = "PM_low_flx_org", upper = "PM_up_flx_org", truth = "PM_0_org", name = "cov_PM_flx_org"),
-      list(stat = "coverage", lower = "PM_low_flx_ind", upper = "PM_up_flx_ind", truth = "PM_0_ind", name = "cov_PM_flx_ind")
+    summary_results = list(
+      mean = mean_results,
+      standard_error_bs = standard_error_bs,
+      standard_error_if = standard_error_if,
+      bias = bias,
+      bias_percentage = bias_percentage,
+      coverage_bs = coverage_bs,
+      coverage_if = coverage_if
     )
+    return(summary_results)
   },
   
   cluster_config = list(js = "slurm")
 )
 
-
-
 # save results
-saveRDS(bias, file = "Evaluation/vaccine_bias.rds")
-saveRDS(bias_percentage, file = "Evaluation/vaccine_bias_percentage.rds")
-saveRDS(coverage, file = "Evaluation/vaccine_coverage.rds")
-saveRDS(estimators, file = "Evaluation/vaccine_estimaters.rds")
-saveRDS(standard_error, file = "Evaluation/vaccine_standard_error.rds")
-saveRDS(true_values, file = "Evaluation/vaccine_true_values.rds")
+saveRDS(summary_results, file = "Evaluation/summary_results.rds")
 
 
 
