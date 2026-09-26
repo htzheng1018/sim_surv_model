@@ -1,0 +1,38 @@
+
+library(dplyr)
+library(kableExtra)
+summary_results = readRDS("Evaluation/summary_results.rds")
+
+# save files
+base_cols = c("n", "surv_time", "n_reps") 
+targets = c("tps_org", "tps_ind", "flx_org", "flx_ind")
+for (target in c("tps_org", "tps_ind", "flx_org", "flx_ind")) {
+  summary_results$bias_percentage %>%
+    select(all_of(base_cols), contains(target)) %>%
+    kable(format = "latex", booktabs = TRUE, longtable = FALSE) %>%
+    save_kable(paste0("/Users/haotianzheng/Desktop/research/Avi_Kenny/results/bias_percentage_", target, ".tex"))
+  summary_results$coverage_bs %>%
+    select(all_of(base_cols), contains(target)) %>%
+    kable(format = "latex", booktabs = TRUE, longtable = FALSE) %>%
+    save_kable(paste0("/Users/haotianzheng/Desktop/research/Avi_Kenny/results/coverage_bs_", target, ".tex"))
+  summary_results$coverage_if %>%
+    select(all_of(base_cols), contains(target)) %>%
+    kable(format = "latex", booktabs = TRUE, longtable = FALSE) %>%
+    save_kable(paste0("/Users/haotianzheng/Desktop/research/Avi_Kenny/results/coverage_if_", target, ".tex"))
+}
+
+
+
+
+kable(bias, format = "latex", booktabs = TRUE, longtable = FALSE) %>%
+  save_kable("/Users/gjp731/Desktop/research/Avi_Kenny/results/bias.tex")
+kable(bias_percentage, format = "latex", booktabs = TRUE, longtable = FALSE) %>%
+  save_kable("/Users/gjp731/Desktop/research/Avi_Kenny/results/bias_percentage.tex")
+kable(coverage, format = "latex", booktabs = TRUE, longtable = FALSE) %>%
+  save_kable("/Users/gjp731/Desktop/research/Avi_Kenny/results/coverage.tex")
+kable(estimators, format = "latex", booktabs = TRUE, longtable = FALSE) %>%
+  save_kable("/Users/gjp731/Desktop/research/Avi_Kenny/results/estimators.tex")
+kable(standard_error, format = "latex", booktabs = TRUE, longtable = FALSE) %>%
+  save_kable("/Users/gjp731/Desktop/research/Avi_Kenny/results/standard_error.tex")
+kable(true_values, format = "latex", booktabs = TRUE, longtable = FALSE) %>%
+  save_kable("/Users/gjp731/Desktop/research/Avi_Kenny/results/true_values.tex")
