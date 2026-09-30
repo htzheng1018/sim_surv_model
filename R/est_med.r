@@ -81,9 +81,7 @@ pkg_if = function(dat, t) {
     r_m = controlled$cr$est[1]
     IF_m = attr(controlled, "IF_vec_rM")
     
-    if (length(IF_v) != n_v ||
-        length(IF_m) != n_v ||
-        length(IF_p) != n_p) {
+    if (length(IF_v) != n_v || length(IF_m) != n_v || length(IF_p) != n_p) {
       stop("Unexpected influence-vector lengths returned by vaccine.")
     }
     
@@ -99,38 +97,25 @@ pkg_if = function(dat, t) {
     IF_NDE_v = IF_m / r_p
     IF_NDE_p = -r_m * IF_p / r_p ^ 2
     
-    var_NDE = sum(IF_NDE_v ^ 2) / n_v ^ 2 +
-      sum(IF_NDE_p ^ 2) / n_p ^ 2
+    var_NDE = sum(IF_NDE_v ^ 2) / n_v ^ 2 + sum(IF_NDE_p ^ 2) / n_p ^ 2
     
     # Delta method for
     # PM = 1 - log(r_m / r_p) / log(r_v / r_p).
     A = log(r_m / r_p)
     B = log(r_v / r_p)
     
-    IF_PM_v = A * IF_v / (B ^ 2 * r_v) -
-      IF_m / (B * r_m)
+    IF_PM_v = A * IF_v / (B ^ 2 * r_v) - IF_m / (B * r_m)
     IF_PM_p = log(r_v / r_m) * IF_p / (B ^ 2 * r_p)
     
-    var_PM = sum(IF_PM_v ^ 2) / n_v ^ 2 +
-      sum(IF_PM_p ^ 2) / n_p ^ 2
+    var_PM = sum(IF_PM_v ^ 2) / n_v ^ 2 + sum(IF_PM_p ^ 2) / n_p ^ 2
     
-    estimate = c(
-      NIE_one = NIE,
-      NDE = NDE,
-      PM_one = PM
-    )
-    
-    se = sqrt(c(
-      NIE_one = var_NIE,
-      NDE = var_NDE,
-      PM_one = var_PM
-    ))
+    estimate = c(NIE_one = NIE, NDE = NDE, PM_one = PM)
+    se = sqrt(c(NIE_one = var_NIE, NDE = var_NDE, PM_one = var_PM))
     
     ratio_ci = function(est, se) {
       if (!is.finite(est) || !is.finite(se) || est <= 0) {
         return(c(NA_real_, NA_real_))
       }
-      
       exp(log(est) + c(-1, 1) * 1.96 * se / est)
     }
     
@@ -141,26 +126,15 @@ pkg_if = function(dat, t) {
     result = rbind(
       estimate = estimate,
       se_if = se,
-      low_if = c(
-        NIE_one = unname(ci_NIE[1]),
-        NDE = unname(ci_NDE[1]),
-        PM_one = unname(ci_PM[1])
-      ),
-      up_if = c(
-        NIE_one = unname(ci_NIE[2]),
-        NDE = unname(ci_NDE[2]),
-        PM_one = unname(ci_PM[2])
-      )
+      low_if = c(NIE_one = unname(ci_NIE[1]), NDE = unname(ci_NDE[1]), PM_one = unname(ci_PM[1])),
+      up_if = c(NIE_one = unname(ci_NIE[2]), NDE = unname(ci_NDE[2]), PM_one = unname(ci_PM[2]))
     )
     
     return(result)
   }
   
   # r_p and r_v are computed once and reused here.
-  return(list(
-    tps = get_if(FALSE),
-    flx = get_if(TRUE)
-  ))
+  return(list(tps = get_if(FALSE), flx = get_if(TRUE)))
 }
 
 est_med = function(dat, t, edge = FALSE, boots = 1000, if_result = NULL) {
@@ -243,42 +217,33 @@ est_med = function(dat, t, edge = FALSE, boots = 1000, if_result = NULL) {
   
   # bootstrap for ci
   if (boots > 0) {
-    boot_est = matrix(NA_real_, nrow = boots, ncol = length(fit$estimate),
-                      dimnames = list(NULL, names(fit$estimate))
-    )
+    boot_est = matrix(NA_real_, nrow = boots, ncol = length(fit$estimate), dimnames = list(NULL, names(fit$estimate)))
     for (i in seq_len(boots)) {
       samps = sample.int(nrow(dat), size = nrow(dat), replace = TRUE)
-      boot_est[i, ] = tryCatch(get_estimates(dat[samps, , drop = FALSE])$estimate,
-                               error = function(e) {
-                                 rep(NA_real_, length(fit$estimate))
-                               }
-      )
+      boot_est[i, ] = tryCatch(get_estimates(dat[samps, , drop = FALSE])$estimate, error = function(e) {
+        rep(NA_real_, length(fit$estimate))
+      })
     }
     n_boot_valid = colSums(is.finite(boot_est))
-    boot_se = vapply(seq_len(ncol(boot_est)),
-                     function(j) {
-                       x = boot_est[, j]
-                       x = x[is.finite(x)]
-                       if (length(x) < 2) {
-                         NA_real_
-                       } else {
-                         sd(x)
-                       }
-                     },
-                     numeric(1)
-    )
-    boot_ci = vapply(seq_len(ncol(boot_est)),
-                     function(j) {
-                       x = boot_est[, j]
-                       x = x[is.finite(x)]
-                       if (length(x) == 0) {
-                         c(NA_real_, NA_real_)
-                       } else {
-                         quantile(x, probs = c(0.025, 0.975), names = FALSE)
-                       }
-                     },
-                     numeric(2)
-    )
+    boot_se = vapply(seq_len(ncol(boot_est)), function(j) {
+      x = boot_est[, j]
+      x = x[is.finite(x)]
+      if (length(x) < 2) {
+        NA_real_
+      } else {
+        sd(x)
+      }
+    }, numeric(1))
+    boot_ci = vapply(seq_len(ncol(boot_est)), function(j) {
+      x = boot_est[, j]
+      x = x[is.finite(x)]
+      if (length(x) == 0) {
+        c(NA_real_, NA_real_)
+      } else {
+        quantile(x, probs = c(0.025, 0.975), names = FALSE)
+      }
+    }, numeric(2))
+    
     result["se_bs", ] = boot_se
     result["low_bs", ] = boot_ci[1, ]
     result["up_bs", ] = boot_ci[2, ]
